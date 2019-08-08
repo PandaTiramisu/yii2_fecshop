@@ -6,8 +6,10 @@
  * @copyright Copyright (c) 2016 FecShop Software LLC
  * @license http://www.fecshop.com/license/
  */
+use fec\helpers\CRequest;
 ?>
 <div class="main container two-columns-left">
+    <?= Yii::$service->page->widget->render('breadcrumbs',$this); ?>
 	<div class="col-main account_center">
 		<div class="std">
 			<div style="margin:4px 0 0">
@@ -59,15 +61,13 @@
 		</div>
 
 		<script>
-		 function deleteAddress(address_id){
-			var r=confirm('do you readly want delete this address?'); 
-			if (r==true){ 
-				url = "<?= Yii::$service->url->getUrl('customer/address') ?>?method=remove&address_id="+address_id;
-				
-				window.location.href=url;
-			}
-		 }
-
+            function deleteAddress(address_id){
+				var r=confirm("<?= Yii::$service->page->translate->__('do you readly want delete this address?') ?>");
+                if (r==true){ 
+                    url = "<?= Yii::$service->url->getUrl('customer/address') ?>";
+                    doPost(url, {"method": "remove", "address_id": address_id, "<?= CRequest::getCsrfName() ?>": "<?= CRequest::getCsrfValue() ?>" });
+                }
+            }
 		</script>
 	</div>
 	

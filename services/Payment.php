@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -13,12 +14,18 @@ use Yii;
 
 /**
  * Payment services.
+ *
+ * @property \fecshop\services\payment\Alipay $alipay alipay sub-service of url
+ * @property \fecshop\services\payment\Paypal $paypal paypal sub-service of url
+ * @property \fecshop\services\payment\Wxpay $wxpay wxpay sub-service of url
+ *
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
 class Payment extends Service
 {
     public $paymentConfig;
+
     /**
      * Array
      * 不需要释放库存的支付方式。譬如货到付款，在系统中
@@ -26,10 +33,19 @@ class Payment extends Service
      * 如果需要释放产品库存，客服在后台取消订单即可释放产品库存。
      */
     public $noRelasePaymentMethod;
+    
+    public $env_sanbox = 'sanbox';
+    public $env_product = 'product';
+
     protected $_currentPaymentMethod;
+    
+    public function init()
+    {
+        parent::init();
+    }
 
     /**
-     * @property $payment_method | string
+     * @param $payment_method | string
      * 设置当前的支付方式
      */
     public function setPaymentMethod($payment_method)
@@ -45,13 +61,35 @@ class Payment extends Service
     {
         return $this->_currentPaymentMethod;
     }
+    /**
+     * @return 得到支付方式，以及对应的label，譬如：
+     * [
+     *  'check_money' => 'Check / Money Order',
+     *  'alipay_standard' => '支付宝支付',
+     * ]                                                                                                  #从配置信息中获取
+     */
+    public function getPaymentLabels(){
+        $arr = [];
+        $paymentConfig = $this->paymentConfig;
+        if (is_array($paymentConfig['standard'])) {
+            foreach ($paymentConfig['standard'] as $payment_method => $one) {
+                if (isset($one['label']) && !empty($one['label']) && $payment_method) {
+                    $arr[$payment_method] = $one['label'];
+                }
+            }
+        }
+
+        return $arr;
+    }
+    
+    
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回提交订单信息跳转到的第三方支付url，也就是第三方支付的url。
      *                                                                                                    #从配置信息中获取
      */
-    public function getStandardStartUrl($payment_method = '',$type = '')
+    public function getStandardStartUrl($payment_method = '', $type = '')
     {
         if (!$payment_method) {
             $payment_method = $this->getPaymentMethod();
@@ -60,9 +98,9 @@ class Payment extends Service
             $paymentConfig = $this->paymentConfig;
             if (isset($paymentConfig['standard'][$payment_method]['start_url'])) {
                 if (!empty($paymentConfig['standard'][$payment_method]['start_url'])) {
-                    if($type == 'appserver'){
+                    if ($type == 'appserver') {
                         return $this->getAppServerUrl($paymentConfig['standard'][$payment_method]['start_url']);
-                    }else{
+                    } else {
                         return $this->getUrl($paymentConfig['standard'][$payment_method]['start_url']);
                     }
                 }
@@ -70,15 +108,15 @@ class Payment extends Service
         }
     }
     
-    public function getAppServerUrl($url){
+    public function getAppServerUrl($url)
+    {
         $url = str_replace('@homeUrl', '', $url);
 
         return trim($url);
-        
     }
     
     /**
-     * @property $url | String url的字符串
+     * @param $url | String url的字符串
      * @return string 根据传递的字符串格式，得到相应的url
      */
     protected function getUrl($url)
@@ -90,7 +128,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 第三方支付成功后，返回到网站的url
      *                                                          #从配置信息中获取
      */
@@ -109,10 +147,8 @@ class Payment extends Service
         }
     }
 
-   
-
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return string 支付取消的url。
      *                #从配置信息中获取
      */
@@ -132,7 +168,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return string 用户名
      *                #从配置信息中获取
      */
@@ -152,7 +188,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return string Password
      *                #从配置信息中获取
      */
@@ -172,7 +208,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return string Signature
      *                #从配置信息中获取
      */
@@ -192,7 +228,7 @@ class Payment extends Service
     }
     
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的api地址。
      */
     public function getStandardWebscrUrl($payment_method = '')
@@ -209,8 +245,6 @@ class Payment extends Service
             }
         }
     }
-    
-    
 
     /**
      * @return array 得到所有支付的数组，数组含有三个字段。
@@ -218,11 +252,17 @@ class Payment extends Service
     public function getStandardPaymentArr()
     {
         $arr = [];
+        $appName = Yii::$service->helper->getAppName();
         if (
             isset($this->paymentConfig['standard']) &&
             is_array($this->paymentConfig['standard'])
         ) {
             foreach ($this->paymentConfig['standard'] as $payment_type => $info) {
+                // 查看配置是否是激活状态 
+                $checkMoneyConfig = Yii::$app->store->get($appName.'_payment', $payment_type);
+                if ($checkMoneyConfig != Yii::$app->store->enable) {
+                    continue;
+                }
                 $label = $info['label'];
                 $imageUrl = '';
                 if (is_array($info['image'])) {
@@ -244,7 +284,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String ， 支付方式
+     * @param $payment_method | String ， 支付方式
      * @return bool 判断传递的支付方式，是否在配置中存在，如果存在返回true。
      */
     protected function actionIfIsCorrectStandard($payment_method)
@@ -272,9 +312,26 @@ class Payment extends Service
             }
         }
     }
+
+    /**
+     * @param $payment_method | String 支付方式。
+     * @return 返回支付方式的label
+     */
+    public function getPaymentLabelByMethod($payment_method = '')
+    {
+        $payment_method_label = $this->getStandardLabel($payment_method);
+        if (!$payment_method_label) {
+            $payment_method_label = $this->getExpressLabel($payment_method);
+        }
+        if ($payment_method_label) {
+            return $payment_method_label;
+        } else {
+            return $payment_method;
+        }
+    }
     
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的label。
      */
     public function getStandardLabel($payment_method = '')
@@ -293,7 +350,7 @@ class Payment extends Service
     }
     
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的signature。
      */
     public function getStandardIpnUrl($payment_method = '')
@@ -312,7 +369,7 @@ class Payment extends Service
     }
     
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的signature。
      */
     public function getStandardReturnUrl($payment_method = '')
@@ -335,7 +392,7 @@ class Payment extends Service
     //###################
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回获取token的url地址。
      */
     public function getExpressNvpUrl($payment_method = '')
@@ -352,8 +409,9 @@ class Payment extends Service
             }
         }
     }
+
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的api地址。
      */
     public function getExpressWebscrUrl($payment_method = '')
@@ -370,8 +428,9 @@ class Payment extends Service
             }
         }
     }
+
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的account。
      */
     public function getExpressAccount($payment_method = '')
@@ -390,7 +449,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的password。
      */
     public function getExpressPassword($payment_method = '')
@@ -409,7 +468,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的signature。
      */
     public function getExpressSignature($payment_method = '')
@@ -426,11 +485,9 @@ class Payment extends Service
             }
         }
     }
-    
-    
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的label。
      */
     public function getExpressLabel($payment_method = '')
@@ -449,7 +506,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的signature。
      */
     public function getExpressReturnUrl($payment_method = '')
@@ -466,12 +523,9 @@ class Payment extends Service
             }
         }
     }
-    
-    
-    
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的signature。
      */
     public function getExpressCancelUrl($payment_method = '')
@@ -490,7 +544,7 @@ class Payment extends Service
     }
 
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 第三方支付成功后，返回到网站的url
      *                                                          #从配置信息中获取
      */
@@ -509,11 +563,8 @@ class Payment extends Service
         }
     }
     
-    
-    
-    
     /**
-     * @property $payment_method | String 支付方式。
+     * @param $payment_method | String 支付方式。
      * @return 返回进行数据交互的express的signature。
      */
     public function getExpressIpnUrl($payment_method = '')

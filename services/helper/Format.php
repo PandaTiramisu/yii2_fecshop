@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -20,27 +21,25 @@ use fecshop\services\Service;
 class Format extends Service
 {
     /**
-     * @property $number | Float
-     * @property $bits | Int
+     * @param $number | Float
+     * @param $bits | Int
      * @return $number | Float
      * 返回格式化形式的float小数，譬如2 会变成2.00
      */
     public function number_format($number, $bits = 2)
     {
         return number_format($number, $bits, '.', '');
-        //$n = pow(10,$bits);
-        //$number = ceil ($number * $n ) / $n ;
-        //$number = number_format();
-        //return $number;
     }
+
     /**
-     * @property $day | Int 多少天之前
+     * @param $day | Int 多少天之前
      * 返回最近xx天的日期数组
      */
-    public function getPreDayDateArr($day){
+    public function getPreDayDateArr($day)
+    {
         $arr = [];
         for ($i=$day; $i>=0; $i--) {
-            $str = date("Y-m-d",strtotime("-$i day"));
+            $str = date("Y-m-d", strtotime("-$i day"));
             $arr[$str] = 0;
         }
         return $arr;

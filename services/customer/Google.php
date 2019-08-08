@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -20,18 +21,19 @@ use Yii;
 class Google extends Service
 {
     protected $currentCountry;
+
     protected $currentState;
 
     /**
-     * @property $url | String , 用于得到返回url的字符串，$customDomain == false时，是urlKey，$customDomain == true时，是完整的url
-     * @property $customDomain | boolean, 是否是自定义url
+     * @param $url | String , 用于得到返回url的字符串，$customDomain == false时，是urlKey，$customDomain == true时，是完整的url
+     * @param $customDomain | boolean, 是否是自定义url
      * @return  得到跳转到google登录的url
      */
-    public function getLoginUrl($url,$customDomain = false)
+    public function getLoginUrl($url, $customDomain = false)
     {
-        if(!$customDomain){
+        if (!$customDomain) {
             $redirectUrl = Yii::$service->url->getUrl($url);
-        }else {
+        } else {
             $redirectUrl = $url;
         }
         global $googleapiinfo;

@@ -13,16 +13,16 @@ use fec\controllers\FecController;
 use fec\helpers\CConfig;
 use Yii;
 use yii\base\InvalidValueException;
-use fecadmin\FecadminbaseController;
+use yii\web\Controller;
 
 /**
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
-class AppadminController extends FecadminbaseController
+class AppadminController extends Controller
 {
     public $blockNamespace;
-    public $enableCsrfValidation = false;
+    public $enableCsrfValidation = true;
     
     /**
      * init theme component property : $fecshopThemeDir and $layoutFile
@@ -31,6 +31,9 @@ class AppadminController extends FecadminbaseController
      */
     public function init()
     {
+        if (Yii::$app->user->isGuest) {
+            Yii::$service->url->redirectByUrlKey('/fecadmin/login/index');
+        }
         if (!Yii::$service->page->theme->fecshopThemeDir) {
             Yii::$service->page->theme->fecshopThemeDir = Yii::getAlias(CConfig::param('appadminBaseTheme'));
         }
@@ -42,6 +45,11 @@ class AppadminController extends FecadminbaseController
         if($localThemeDir){
             Yii::$service->page->theme->setLocalThemeDir($localThemeDir);
         }
+        // 设置third模板路径
+        $thirdThemeDir = Yii::$app->params['thirdThemeDir'];
+        if($thirdThemeDir){
+            Yii::$service->page->theme->setThirdThemeDir($thirdThemeDir);
+        }
         /*
          *  set i18n translate category.
          */
@@ -51,11 +59,33 @@ class AppadminController extends FecadminbaseController
          */
     }
 
+    public function beforeAction($action)
+    {
+        if (parent::beforeAction($action)) {
+            $moduleId = Yii::$app->controller->module->id;
+            $controllerId = $this->id;
+            $actionId = $this->action->id;
+            $currentUrlKey = "/$moduleId/$controllerId/$actionId";
+            $resources = Yii::$service->admin->role->getCurrentRoleResources();
+            if (is_array($resources) && isset($resources[$currentUrlKey]) && $resources[$currentUrlKey]) {
+                Yii::$service->admin->systemLog->save();
+                return true;
+            } else {
+                echo json_encode([
+                    'statusCode' => '300',
+                    'message' => 'you do not have role',
+                ]);
+                exit;
+            }
+        }
+
+        return false;
+    }
     
 
     /**
-     * @property $view|string , (only) view file name ,by this module id, this controller id , generate view relative path.
-     * @property $params|Array,
+     * @param $view|string , (only) view file name ,by this module id, this controller id , generate view relative path.
+     * @param $params|Array,
      * 1.get exist view file from mutil theme by theme protity.
      * 2.get content by yii view compontent  function renderFile()  ,
      */
@@ -87,7 +117,7 @@ class AppadminController extends FecadminbaseController
         throw new InvalidValueException('layout file is not exist!');
     }
     
-    public function getBlock($blockname=''){
+    public function getFecadminBlock($blockname=''){
 	    $_currentNameSpace = \fec\helpers\CModule::param("_currentNameSpace");
 		//echo $_currentNameSpace;exit;
         if(empty($_currentNameSpace)){
@@ -115,5 +145,26 @@ class AppadminController extends FecadminbaseController
         
 		return new $blockFile;
 		
+    }
+
+    public function getBlock($blockName = ''){
+        if (!$blockName) {
+            $blockName = $this->action->id;
+        }
+        if (!$this->blockNamespace) {
+            $this->blockNamespace = Yii::$app->controller->module->blockNamespace;
+        }
+        if (!$this->blockNamespace) {
+            throw new \yii\web\HttpException(406, 'blockNamespace is empty , you should config it in module->blockNamespace or controller blockNamespace ');
+        }
+        $viewId = $this->id;
+        $viewId = str_replace('/', '\\', $viewId);
+        $relativeFile = '\\'.$this->blockNamespace;
+        $relativeFile .= '\\'.$viewId.'\\'.ucfirst($blockName);
+        //查找是否在rewriteMap中存在重写
+        $relativeFile = Yii::mapGetName($relativeFile);
+
+        return new $relativeFile();
+
     }
 }

@@ -20,7 +20,6 @@ return [
             'translate' => [
                 'class'        => 'fecshop\services\page\Translate',
             ],
-
             'asset' => [
                 'class' =>  'fecshop\services\page\Asset',
                 // js 版本号，当更改了js，将这里的版本号+1，生成的js链接就会更改为  xxx.js?v=2 ,
@@ -42,11 +41,6 @@ return [
                  * 这样就可以将js和css文件使用独立的域名了【把域名对应的地址对应到$basePath】。
                  */
                 'baseUrl' => '@web/assets',
-                // 是否每次刷新，强制发布js css到线上？ 开发环境设置为true，正式环境设置为false（你也可以设置为true，但是每次刷新都会复制js和css文件到@app/web/assets/下面，耗费资源）
-                // 线上设置成false，每次访问不会强制复制js和css到发布环境，可以节省资源，但是，当css和js更新后，
-                // 需要去@app/web/assets/ 路径下，手动清空所有的文件夹和文件，当assets路径下找不到文件，就会重新复制库包里的js和css到web环境，
-                // 这是属于Yii2的知识范畴。
-                'forceCopy' => true,
                 
                 
                 /* js and css config example:
@@ -217,7 +211,6 @@ return [
                 // 管理员提供，用于发送登录注册邮件，下单信息等。
                 'trace_api_url' => '',  // 'http://120.24.37.249:3000/fec/trace/api',
             ],
-
         ],
     ],
 ];

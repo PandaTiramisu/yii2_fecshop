@@ -24,7 +24,7 @@ class HomeController extends AppserverController
         $cacheName = 'home';
         if (Yii::$service->cache->isEnable($cacheName)) {
             $timeout = Yii::$service->cache->timeout($cacheName);
-            $disableUrlParam = Yii::$service->cache->timeout($cacheName);
+            $disableUrlParam = Yii::$service->cache->disableUrlParam($cacheName);
             $get = Yii::$app->request->get();
             // 存在无缓存参数，则关闭缓存
             if (isset($get[$disableUrlParam])) {
@@ -33,17 +33,19 @@ class HomeController extends AppserverController
                     'class' => 'yii\filters\PageCache',
                     'only' => ['index'],
                 ];
+                
+                return $behaviors;
             }
             $store = Yii::$service->store->currentStore;
             $currency = Yii::$service->page->currency->getCurrentCurrency();
-
+            $langCode = Yii::$service->store->currentLangCode;
             $behaviors[] =  [
                 'enabled' => true,
                 'class' => 'yii\filters\PageCache',
                 'only' => ['index'],
                 'duration' => $timeout,
                 'variations' => [
-                    $store, $currency,
+                    $store, $currency,$langCode
                 ],
             ];
         }
@@ -65,18 +67,18 @@ class HomeController extends AppserverController
                 'language'    => $language,
                 'currency'    => $currency,
             ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
     
     public function getAdvertise(){
         
-        $bigImg1 = Yii::$service->image->getImgUrl('custom/home_img_1.jpg','apphtml5');
-        $bigImg2 = Yii::$service->image->getImgUrl('custom/home_img_2.jpg','apphtml5');
-        $bigImg3 = Yii::$service->image->getImgUrl('custom/home_img_3.jpg','apphtml5');
-        $smallImg1 = Yii::$service->image->getImgUrl('custom/home_small_1.jpg','apphtml5');
-        $smallImg2 = Yii::$service->image->getImgUrl('custom/home_small_2.jpg','apphtml5');
+        $bigImg1 = Yii::$service->image->getImgUrl('apphtml5/custom/home_img_1.jpg');
+        $bigImg2 = Yii::$service->image->getImgUrl('apphtml5/custom/home_img_2.jpg');
+        $bigImg3 = Yii::$service->image->getImgUrl('apphtml5/custom/home_img_3.jpg');
+        $smallImg1 = Yii::$service->image->getImgUrl('apphtml5/custom/home_small_1.jpg');
+        $smallImg2 = Yii::$service->image->getImgUrl('apphtml5/custom/home_small_2.jpg');
         
         return [
             'bigImgList' => [
@@ -92,22 +94,19 @@ class HomeController extends AppserverController
     }
     
     public function getProduct(){
-        $featured_skus = Yii::$app->controller->module->params['homeFeaturedSku'];
-        //Yii::$service->session->getUUID();
+        $appName = Yii::$service->helper->getAppName();
+        $bestFeatureSkuConfig = Yii::$app->store->get($appName.'_home', 'best_feature_sku');
+        $featured_skus = explode(',', $bestFeatureSkuConfig);
+
         return $this->getProductBySkus($featured_skus);
     }
     
-    
-
-    //public function getBestSellerProduct(){
-    //	$best_skus = Yii::$app->controller->module->params['homeBestSellerSku'];
-    //	return $this->getProductBySkus($best_skus);
-    //}
-
     public function getProductBySkus($skus)
     {
+        $productPrimaryKey = Yii::$service->product->getPrimaryKey();
         if (is_array($skus) && !empty($skus)) {
             $filter['select'] = [
+                $productPrimaryKey,
                 'sku', 'spu', 'name', 'image',
                 'price', 'special_price',
                 'special_from', 'special_to',

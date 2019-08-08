@@ -36,6 +36,10 @@ return [
                 ],
             ],
             */
+            'wx' => [
+                'class' => 'fecshop\services\helper\Wx',
+                'configFile'    => '@common/config/payment/wxpay/lib/WxPay.Micro.Config.php',
+            ],
             'errors' => [
                 'class' => 'fecshop\services\helper\Errors',
             ],

@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -13,7 +14,7 @@ namespace fecshop\services\cms\staticblock;
 use Yii;
 use fecshop\services\Service;
 
-/** 
+/**
  * staticBlock部分，mongodb的实现部分。
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
@@ -21,13 +22,17 @@ use fecshop\services\Service;
 class StaticBlockMongodb extends Service implements StaticBlockInterface
 {
     public $numPerPage = 20;
+
     protected $_staticBlockModelName = '\fecshop\models\mongodb\cms\StaticBlock';
+
     protected $_staticBlockModel;
     
-    public function init(){
+    public function init()
+    {
         parent::init();
-        list($this->_staticBlockModelName,$this->_staticBlockModel) = Yii::mapGet($this->_staticBlockModelName);  
+        list($this->_staticBlockModelName, $this->_staticBlockModel) = Yii::mapGet($this->_staticBlockModelName);
     }
+
     public function getPrimaryKey()
     {
         return '_id';
@@ -75,7 +80,7 @@ class StaticBlockMongodb extends Service implements StaticBlockInterface
     }
 
     /**
-     * @property $one|array
+     * @param $one|array
      * save $data to cms model,then,add url rewrite info to system service urlrewrite.
      */
     public function save($one)
@@ -83,14 +88,14 @@ class StaticBlockMongodb extends Service implements StaticBlockInterface
         $currentDateTime = \fec\helpers\CDate::getCurrentDateTime();
         $primaryVal = isset($one[$this->getPrimaryKey()]) ? $one[$this->getPrimaryKey()] : '';
         if (!($this->validateIdentify($one))) {
-            Yii::$service->helper->errors->add('StaticBlock: identify存在，您必须定义一个唯一的identify ');
+            Yii::$service->helper->errors->add('Static block: identify exit, You must define a unique identify');
 
             return;
         }
         if ($primaryVal) {
             $model = $this->_staticBlockModel->findOne($primaryVal);
             if (!$model) {
-                Yii::$service->helper->errors->add('StaticBlock '.$this->getPrimaryKey().' is not exist');
+                Yii::$service->helper->errors->add('Static block {primaryKey} is not exist', ['primaryKey' => $this->getPrimaryKey()]);
 
                 return;
             }

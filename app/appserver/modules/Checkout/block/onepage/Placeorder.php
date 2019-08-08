@@ -53,9 +53,9 @@ class Placeorder
                 $code = Yii::$service->helper->appserver->order_generate_request_post_param_invaild;
                 $data = [];
                 $message = $checkInfo;
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data, $message);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data, $message);
                 
-                return $reponseData;
+                return $responseData;
             }
             // 如果游客用户勾选了注册账号，则注册，登录，并把地址写入到用户的address中
             $guestInfo = $this->guestCreateAndLoginAccount($post);
@@ -63,9 +63,9 @@ class Placeorder
                 $code = Yii::$service->helper->appserver->order_generate_create_account_fail;
                 $data = [];
                 $message = $guestInfo;
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data, $message);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data, $message);
                 
-                return $reponseData;
+                return $responseData;
             }
             
             $save_address_info = $this->updateAddress($post);
@@ -73,9 +73,9 @@ class Placeorder
                 $code = Yii::$service->helper->appserver->order_generate_save_address_fail;
                 $data = [];
                 $message = $save_address_info;
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data, $message);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data, $message);
                 
-                return $reponseData;
+                return $responseData;
             }
             
             // 更新Cart信息
@@ -97,13 +97,15 @@ class Placeorder
                     // 得到支付跳转前的准备页面。
                     $startUrl = Yii::$service->payment->getStandardStartUrl('','appserver');
                     $innerTransaction->commit();
+                    $createdOrder = Yii::$service->order->createdOrder;
                     $code = Yii::$service->helper->appserver->status_success;
                     $data = [
-                            'redirectUrl' => $startUrl,
+                        'redirectUrl' => $startUrl,
+                        'incrementId' => $createdOrder['increment_id'],
                     ];
-                    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                     
-                    return $reponseData;
+                    return $responseData;
                 } else {
                     
                     $innerTransaction->rollBack();
@@ -112,11 +114,11 @@ class Placeorder
                     $data = [
                         'error' => $error,
                     ];
-                    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                     
-                    return $reponseData;
+                    return $responseData;
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $innerTransaction->rollBack();
             }
             
@@ -130,7 +132,7 @@ class Placeorder
     }
 
     /**
-     * @property $post|Array，前台传递参数数组。
+     * @param $post|Array，前台传递参数数组。
      * 如果游客选择了创建账户，并且输入了密码，则使用address email作为账号，
      * 进行账号的注册和登录。
      */
@@ -177,7 +179,7 @@ class Placeorder
     }
 
     /**
-     * @property $post | Array
+     * @param $post | Array
      * 登录用户，保存货运地址到customer address ，然后把生成的
      * address_id 写入到cart中。
      * shipping method写入到cart中
@@ -238,7 +240,7 @@ class Placeorder
     */
 
     /**
-     * @property $post | Array
+     * @param $post | Array
      * @return bool
      *              检查前台传递的信息是否正确。同时初始化一部分类变量
      */
@@ -305,7 +307,7 @@ class Placeorder
         if ($order_remark && $orderRemarkStrMaxLen) {
             $order_remark_strlen = strlen($order_remark);
             if ($order_remark_strlen > $orderRemarkStrMaxLen) {
-                Yii::$service->helper->errors->add('order remark string length can not gt '.$orderRemarkStrMaxLen);
+                Yii::$service->helper->errors->add('order remark string length can not gt {orderRemarkStrMaxLen}', ['orderRemarkStrMaxLen' => $orderRemarkStrMaxLen]);
                 
                 return false;
             } else {

@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -21,19 +22,23 @@ use Yii;
 class Item extends Service
 {
     protected $_itemModelName = '\fecshop\models\mysqldb\order\Item';
+
     protected $_itemModel;
     
-    public function init(){
+    public function init()
+    {
         parent::init();
-        list($this->_itemModelName,$this->_itemModel) = \Yii::mapGet($this->_itemModelName);  
+        list($this->_itemModelName, $this->_itemModel) = \Yii::mapGet($this->_itemModelName);
     }
+
     /**
-     * @property $product_id | string , 产品的id
-     * @property  $customer_id | int， 用户的id
-     * @property $month | int, 几个月内的订单
+     * @param $product_id | string , 产品的id
+     * @param  $customer_id | int， 用户的id
+     * @param $month | int, 几个月内的订单
      * 通过product_id和customerId，得到$month个月内下单支付成功的产品
      */
-    protected function actionGetByProductIdAndCustomerId($product_id, $month, $customer_id = 0){
+    protected function actionGetByProductIdAndCustomerId($product_id, $month, $customer_id = 0)
+    {
         if (!$customer_id) {
             if (Yii::$app->user->isGuest) {
                 return false;
@@ -64,10 +69,10 @@ class Item extends Service
             return false;
         }
         $items = $this->_itemModel->find()->asArray()->where([
-                'product_id' => $product_id,
-            ])->andWhere([
-                'in', 'order_id', $order_ids
-            ])
+            'product_id' => $product_id,
+        ])->andWhere([
+            'in', 'order_id', $order_ids
+        ])
             ->all();
         if (!empty($items)) {
             return $items;
@@ -75,9 +80,10 @@ class Item extends Service
             return false;
         }
     }
+
     /**
-     * @property $order_id | Int
-     * @property $onlyFromTable | 从数据库取出不做处理
+     * @param $order_id | Int
+     * @param $onlyFromTable | 从数据库取出不做处理
      * @return array
      *               通过order_id 得到所有的items
      */
@@ -103,10 +109,39 @@ class Item extends Service
 
         return $items;
     }
+    
+    /**
+     * @param $order_ids | array
+     * @param $onlyFromTable | 从数据库取出不做处理
+     * @return array
+     *               通过order_id 得到所有的items
+     */
+    protected function actionGetByOrderIds($order_ids, $onlyFromTable = false)
+    {
+        $items = $this->_itemModel->find()->asArray()->where([
+            'in', 'order_id', $order_ids,
+        ])->all();
+        if ($onlyFromTable) {
+            return $items;
+        }
+        foreach ($items as $k=>$one) {
+            $product_id = $one['product_id'];
+            $product_one = Yii::$service->product->getByPrimaryKey($product_id);
+
+            $productSpuOptions = $this->getProductSpuOptions($product_one);
+            //var_dump($productSpuOptions);
+            $items[$k]['spu_options'] = $productSpuOptions;
+            $items[$k]['custom_option'] = $product_one['custom_option'];
+            $items[$k]['custom_option_info'] = $this->getProductOptions($items[$k]);
+            $items[$k]['image'] = $this->getProductImage($product_one, $one);
+        }
+
+        return $items;
+    }
 
     /**
-     * @property $product_one | Object, product model
-     * @property $item_one | Array , order item ，是订单产品表取出来的数据
+     * @param $product_one | Object, product model
+     * @param $item_one | Array , order item ，是订单产品表取出来的数据
      * 得到产品的图片。如果存在custom option image，则返回custom option image，如果不存在，则返回产品的主图
      */
     public function getProductImage($product_one, $item_one)
@@ -130,7 +165,7 @@ class Item extends Service
     }
 
     /**
-     * @property $item_one | Array , order item
+     * @param $item_one | Array , order item
      * 通过$item_one 的$item_one['custom_option_sku']，$item_one['custom_option'] , $item_one['spu_options']
      * 将spu的选择属性和自定义属性custom_option 组合起来，返回一个统一的数组
      */
@@ -160,7 +195,14 @@ class Item extends Service
     }
 
     /**
-     * @property $productOb | Object，类型：\fecshop\models\mongodb\Product
+     * @param $productOb | Object，类型：\fecshop\models\mongodb\Product
+     * 得到产品的spu对应的属性以及值。
+     * 概念 - spu options：当多个产品是同一个spu，但是不同的sku的时候，他们的产品表里面的
+     * spu attr 的值是不同的，譬如对应鞋子，size 和 color 就是spu attr，对于同一款鞋子，他们
+     * 是同一个spu，对于尺码，颜色不同的鞋子，是不同的sku，他们的spu attr 就是 color 和 size。
+     */
+    /**
+     * @param $productOb | Object，类型：\fecshop\models\mongodb\Product
      * 得到产品的spu对应的属性以及值。
      * 概念 - spu options：当多个产品是同一个spu，但是不同的sku的时候，他们的产品表里面的
      * spu attr 的值是不同的，譬如对应鞋子，size 和 color 就是spu attr，对于同一款鞋子，他们
@@ -169,25 +211,44 @@ class Item extends Service
     protected function getProductSpuOptions($productOb)
     {
         $custom_option_info_arr = [];
+        $productPrimaryKey = Yii::$service->product->getPrimaryKey();
+        $productAttrGroup = $productOb['attr_group'];
         if (isset($productOb['attr_group']) && !empty($productOb['attr_group'])) {
-            $productAttrGroup = $productOb['attr_group'];
-            Yii::$service->product->addGroupAttrs($productAttrGroup);
-            $productOb = Yii::$service->product->getByPrimaryKey((string) $productOb['_id']);
-            $spuArr = Yii::$service->product->getSpuAttr($productAttrGroup);
-            if (is_array($spuArr) && !empty($spuArr)) {
-                foreach ($spuArr as $spu_attr) {
-                    if (isset($productOb[$spu_attr]) && !empty($productOb[$spu_attr])) {
-                        $custom_option_info_arr[$spu_attr] = $productOb[$spu_attr];
+            $spuArr     = Yii::$service->product->getSpuAttr($productAttrGroup);
+            //var_dump($productOb['attr_group_info']);
+            // mysql存储
+            if (isset($productOb['attr_group_info']) && is_array($productOb['attr_group_info'])) {
+                $attr_group_info = $productOb['attr_group_info'];
+                if (is_array($spuArr) && !empty($spuArr)) {
+                    foreach ($spuArr as $spu_attr) {
+                        if (isset($attr_group_info[$spu_attr]) && !empty($attr_group_info[$spu_attr])) {
+                            // 进行翻译。
+                            $spu_attr_label = Yii::$service->page->translate->__($spu_attr);
+                            $spu_attr_val = Yii::$service->page->translate->__($attr_group_info[$spu_attr]);
+                            $custom_option_info_arr[$spu_attr_label] = $spu_attr_val;
+                        }
+                    }
+                }
+            } else { // mongodb类型
+                Yii::$service->product->addGroupAttrs($productAttrGroup);
+                $productOb  = Yii::$service->product->getByPrimaryKey((string) $productOb[$productPrimaryKey ]);
+                if (is_array($spuArr) && !empty($spuArr)) {
+                    foreach ($spuArr as $spu_attr) {
+                        if (isset($productOb[$spu_attr]) && !empty($productOb[$spu_attr])) {
+                            // 进行翻译。
+                            $spu_attr_label = Yii::$service->page->translate->__($spu_attr);
+                            $spu_attr_val = Yii::$service->page->translate->__($productOb[$spu_attr]);
+                            $custom_option_info_arr[$spu_attr_label] = $spu_attr_val;
+                        }
                     }
                 }
             }
         }
-
         return $custom_option_info_arr;
     }
 
     /**
-     * @property $items | Array , example:
+     * @param $items | Array , example:
      *	$itmes = [
      *		[
      *			'item_id' => $one['item_id'],
@@ -211,7 +272,7 @@ class Item extends Service
      *			'spu_options' 			=> $productSpuOptions,
      *		]
      *	];
-     * @property $order_id | Int
+     * @param $order_id | Int
      * 保存订单的item信息
      */
     protected function actionSaveOrderItems($items, $order_id, $store)
@@ -237,17 +298,28 @@ class Item extends Service
                 $myOrderItem['qty'] = $item['qty'];
                 $myOrderItem['row_weight'] = $item['product_row_weight'];
                 $myOrderItem['price'] = $item['product_price'];
-                $myOrderItem['base_price'] = $item['product_row_price'];
+                $myOrderItem['base_price'] = $item['base_product_price'];
                 $myOrderItem['row_total'] = $item['product_row_price'];
                 $myOrderItem['base_row_total'] = $item['base_product_row_price'];
                 $myOrderItem['redirect_url'] = $item['product_url'];
-                $myOrderItem->save();
+                if (!$myOrderItem->validate()) {
+                    $errors = $myOrderItem->errors;
+                    Yii::$service->helper->errors->addByModelErrors($errors);
+
+                    return false;
+                }
+                $saveStatus = $myOrderItem->save();
+                // 如果保存失败，直接返回。
+                if (!$saveStatus) {
+                    return $saveStatus;
+                }
             }
         }
+        return true;
     }
     
     /**
-     * @property $filter|array
+     * @param $filter|array
      * @return Array;
      *              通过过滤条件，得到coupon的集合。
      *              example filter:

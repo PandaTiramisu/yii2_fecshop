@@ -13,7 +13,7 @@ use Yii;
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
-class Review
+class Review extends \yii\base\BaseObject
 {
     public $product_id;
     public $spu;
@@ -47,6 +47,11 @@ class Review
             $data = $this->getReviewsBySpu($this->spu);
             $count = $data['count'];
             $coll = $data['coll'];
+            if (is_array($coll) && !empty($coll)) {
+                foreach ($coll as $k => $v) {
+                    $coll[$k]['review_date_str'] = date('Y-m-d H:i:s', $v['review_date']);
+                }
+            }
             return [
                 '_id' => $this->product_id,
                 'spu' => $this->spu,
@@ -61,8 +66,11 @@ class Review
      */
     public function getReviewsBySpu($spu)
     {
-        $review = Yii::$app->getModule('catalog')->params['review'];
-        $productPageReviewCount = isset($review['productPageReviewCount']) ? $review['productPageReviewCount'] : 10;
+        // $review = Yii::$app->getModule('catalog')->params['review'];
+        $appName = Yii::$service->helper->getAppName();
+        $productPageReviewCount = Yii::$app->store->get($appName.'_catalog','review_productPageReviewCount');
+        
+        $productPageReviewCount = $productPageReviewCount ? $productPageReviewCount: 10;
         $currentIp = \fec\helpers\CFunc::get_real_ip();
         $filter = [
             'numPerPage'    => $productPageReviewCount,

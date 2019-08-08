@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -11,6 +12,7 @@ namespace fecshop\services\helper;
 
 use fecshop\services\Service;
 use Yii;
+use yii\db\ActiveQuery;
 
 /**
  * AR services.（Active Record）
@@ -20,25 +22,29 @@ use Yii;
 class AR extends Service
 {
     public $numPerPage = 20;
+
     public $pageNum = 1;
 
-    /*
+    /**
      * example filter:
-    * [
+     * [
      * 		'numPerPage' 	=> 20,
      * 		'pageNum'		=> 1,
      * 		'orderBy'	=> ['_id' => SORT_DESC, 'sku' => SORT_ASC ],
      * 		'where'			=> [
-                ['>','price',1],
-                ['<=','price',10]
-     * 			['sku' => 'uk10001'],
+     *         ['>','price',1],
+     *         ['<=','price',10]
+     * 	        ['sku' => 'uk10001'],
      * 		],
-     * 	'asArray' => true,
+     *      'asArray' => true,
+     *      'fetchAll' => false,   // 是否获取所有数据,如果为true，则传递的numPerPage和pageNum将会无效。
      * ]
      * 查询方面使用的函数，根据传递的参数，进行query
+     * @return ActiveQuery
      */
     public function getCollByFilter($query, $filter)
     {
+        $fetchAll =  isset($filter['fetchAll']) ? $filter['fetchAll'] : false;
         $select     = isset($filter['select']) ? $filter['select'] : '';
         $asArray    = isset($filter['asArray']) ? $filter['asArray'] : true;
         $numPerPage = isset($filter['numPerPage']) ? $filter['numPerPage'] : $this->numPerPage;
@@ -64,17 +70,20 @@ class AR extends Service
                 }
             }
         }
-        $offset = ($pageNum - 1) * $numPerPage;
-        $query->limit($numPerPage)->offset($offset);
+        if (!$fetchAll) {
+            $offset = ($pageNum - 1) * $numPerPage;
+            $query->limit($numPerPage)->offset($offset);
+        }
         if ($orderBy) {
             $query->orderBy($orderBy);
         }
 
         return $query;
     }
+
     /**
-     * @property $model | Object , 数据库model
-     * @property $one | Array ， 数据数组，对model进行赋值
+     * @param $model | Object , 数据库model
+     * @param $one | Array ， 数据数组，对model进行赋值
      * 通过循环的方式，对$model对象的属性进行赋值。
      * 并保存，保存成功后，返回保存后的model对象
      */
@@ -83,7 +92,7 @@ class AR extends Service
         if (!$model) {
             Yii::$service->helper->errors->add('ActiveRecord Save Error: $model is empty');
 
-            return;
+            return false;
         }
         $attributes = $model->attributes();
         if (is_array($attributes) && !empty($attributes)) {
@@ -96,9 +105,13 @@ class AR extends Service
                     }
                 }
             }
-            $model->save();
-            
-            return $model;
+            if ($model->save()) {
+                return $model;
+            } else {
+                Yii::$service->helper->errors->add('model save fail');
+
+                return false;
+            }
         } else {
             Yii::$service->helper->errors->add('$attribute is empty or is not array');
 

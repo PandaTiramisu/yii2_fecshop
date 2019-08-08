@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -25,39 +26,36 @@ class Article extends Service
      * $storagePrex , $storage , $storagePath 为找到当前的storage而设置的配置参数
      * 可以在配置中更改，更改后，就会通过容器注入的方式修改相应的配置值
      */
-    public $storage     = 'ArticleMongodb';   // 当前的storage，如果在config中配置，那么在初始化的时候会被注入修改
+    public $storage; //     = 'ArticleMysqldb';   //  ArticleMongodb | ArticleMysqldb 当前的storage，如果在config中配置，那么在初始化的时候会被注入修改
+
     /**
      * 设置storage的path路径，
      * 如果不设置，则系统使用默认路径
      * 如果设置了路径，则使用自定义的路径
      */
-    public $storagePath = ''; 
+    public $storagePath = '';
+
     protected $_article;
 
     public function init()
     {
         parent::init();
-        $currentService = $this->getStorageService($this);
-         
-        $this->_article = new $currentService();
-       
-        /*
-        if ($this->storage == 'mongodb') {
-            $this->_article = new ArticleMongodb();
-        } elseif ($this->storage == 'mysqldb') {
-            $this->_article = new ArticleMysqldb();
+        // 从数据库配置中得到值, 设置成当前service存储，是Mysqldb 还是 Mongodb
+        $config = Yii::$app->store->get('service_db', 'article_and_staticblock');
+        $this->storage = 'ArticleMysqldb';
+        if ($config == Yii::$app->store->serviceMongodbName) {
+            $this->storage = 'ArticleMongodb';
         }
-        */
+        $currentService = $this->getStorageService($this);
+        $this->_article = new $currentService();
     }
-    
-    
 
     /**
      * Get Url by article's url key.
      */
     //public function getUrlByPath($urlPath){
-        //return Yii::$service->url->getHttpBaseUrl().'/'.$urlKey;
-        //return Yii::$service->url->getUrlByPath($urlPath);
+    //return Yii::$service->url->getHttpBaseUrl().'/'.$urlKey;
+    //return Yii::$service->url->getUrlByPath($urlPath);
     //}
 
     /**
@@ -75,8 +73,9 @@ class Article extends Service
     {
         return $this->_article->getByPrimaryKey($primaryKey);
     }
+
     /**
-     * @property $urlKey | String ,  对应表的url_key字段
+     * @param $urlKey | String ,  对应表的url_key字段
      * 根据url_key 查询得到article model
      */
     protected function actionGetByUrlKey($urlKey)
@@ -93,19 +92,19 @@ class Article extends Service
     }
 
     /**
-     * @property $filter|array
+     * @param $filter|array
      * get artile collection by $filter
      * example filter:
      * [
-     * 		'numPerPage' 	=> 20,
-     * 		'pageNum'		=> 1,
-     * 		'orderBy'	=> ['_id' => SORT_DESC, 'sku' => SORT_ASC ],
-     'where'			=> [
-     ['>','price',1],
-     ['<=','price',10]
+     * 		'numPerPage' => 20,
+     * 		'pageNum' => 1,
+     * 		'orderBy' => ['_id' => SORT_DESC, 'sku' => SORT_ASC ],
+     *      'where' => [
+     *          ['>','price',1],
+     *          ['<=','price',10]
      * 			['sku' => 'uk10001'],
      * 		],
-     * 	'asArray' => true,
+     * 	    'asArray' => true,
      * ]
      */
     protected function actionColl($filter = '')
@@ -114,8 +113,8 @@ class Article extends Service
     }
 
     /**
-     * @property $one|array , save one data .
-     * @property $originUrlKey|string , article origin url key.
+     * @param $one|array , save one data .
+     * @param $originUrlKey|string , article origin url key.
      * save $data to cms model,then,add url rewrite info to system service urlrewrite.
      */
     protected function actionSave($one, $originUrlKey)

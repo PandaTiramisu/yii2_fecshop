@@ -25,7 +25,7 @@ class Register
         $email = isset($param['email']) ? $param['email'] : '';
         $registerParam = \Yii::$app->getModule('customer')->params['register'];
         $registerPageCaptcha = isset($registerParam['registerPageCaptcha']) ? $registerParam['registerPageCaptcha'] : false;
-
+        $this->breadcrumbs(Yii::$service->page->translate->__('Register'));
         return [
             'firstname'        => $firstname,
             'lastname'         => $lastname,
@@ -36,6 +36,15 @@ class Register
             'maxPassLength' => Yii::$service->customer->getRegisterPassMaxLength(),
             'registerPageCaptcha' => $registerPageCaptcha,
         ];
+    }
+    // 面包屑导航
+    protected function breadcrumbs($name)
+    {
+        if (Yii::$app->controller->module->params['register_breadcrumbs']) {
+            Yii::$service->page->breadcrumbs->addItems(['name' => $name]);
+        } else {
+            Yii::$service->page->breadcrumbs->active = false;
+        }
     }
 
     public function register($param)
@@ -64,14 +73,26 @@ class Register
         }
     }
 
-    /**
+   /**
      * 发送登录邮件.
      */
     public function sendRegisterEmail($param)
     {
         if ($param) {
-            //Email::sendRegisterEmail($param);
-            Yii::$service->email->customer->sendRegisterEmail($param);
+            //Email::sendRegisterEmail($param); 
+            if (Yii::$service->email->customer->registerAccountIsNeedEnableByEmail) {
+                $registerEnableToken = Yii::$service->customer->generateRegisterEnableToken($param['email']);
+                if ($registerEnableToken) {
+                    $param['register_enable_token'] = $registerEnableToken;
+                    
+                    Yii::$service->email->customer->sendRegisterEmail($param);
+                    return true;
+                }
+            } else {
+                Yii::$service->email->customer->sendRegisterEmail($param);
+                return true;
+            }
+            
         }
     }
 }

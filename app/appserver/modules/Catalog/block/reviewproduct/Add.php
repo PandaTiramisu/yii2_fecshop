@@ -41,8 +41,10 @@ class Add
     public function getAddCaptcha()
     {
         if (!$this->_add_captcha) {
-            $reviewParam = Yii::$app->getModule('catalog')->params['review'];
-            $this->_add_captcha = isset($reviewParam['add_captcha']) ? $reviewParam['add_captcha'] : false;
+            $appName = Yii::$service->helper->getAppName();
+            $addCaptcha = Yii::$app->store->get($appName.'_catalog','review_add_captcha');
+            // $reviewParam = Yii::$app->getModule('catalog')->params['review'];
+            $this->_add_captcha = ($addCaptcha == Yii::$app->store->enable) ? true : false;
         }
 
         return $this->_add_captcha;
@@ -56,18 +58,18 @@ class Add
             
             $code = Yii::$service->helper->appserver->product_id_not_exist;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         
         $product = Yii::$service->product->getByPrimaryKey($product_id);
         if (!$product['spu']) {
             $code = Yii::$service->helper->appserver->product_not_active;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
 
         $price_info = $this->getProductPriceInfo($product);
@@ -96,12 +98,12 @@ class Add
             'customer_name'  => $customer_name,
             'reviewCaptchaActive'    => $this->getAddCaptcha(),
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
     /**
-     * @property $editForm | Array
+     * @param $editForm | Array
      * @return boolean ，保存评论信息
      */
     public function saveReview($editForm)
@@ -109,19 +111,19 @@ class Add
         if(Yii::$service->product->review->addReview($editForm)){
             $code = Yii::$service->helper->appserver->status_success;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-            return $reponseData;
+            return $responseData;
         }else{
             $code = Yii::$service->helper->appserver->product_save_review_fail;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-            return $reponseData;
+            return $responseData;
         }
     }
     /**
-     * @property $product | String Or Object
+     * @param $product | String Or Object
      * 得到产品的价格信息
      */
     protected function getProductPriceInfo($product)

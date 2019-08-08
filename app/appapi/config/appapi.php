@@ -35,6 +35,9 @@ $config = [
     'components' => [
         'urlManager' => [
             'class' => 'yii\web\UrlManager',
+            'rules' => [
+                '' => 'v1/home/index',
+            ],
             /*
             'enablePrettyUrl'        => true,
             'enableStrictParsing'    => true,
@@ -100,7 +103,7 @@ $config = [
             'class' => 'yii\web\Request',
             'enableCookieValidation' => false,
             'parsers' => [
-                 'application/json' => 'yii\web\JsonParser',
+                'application/json' => 'yii\web\JsonParser',
             ],
         ],
         

@@ -21,7 +21,7 @@ class ProductfavoriteController extends AppserverTokenController
 {
     public $enableCsrfValidation = false ;
     public $pageNum;
-    public $numPerPage = 20;
+    public $numPerPage = 50;
     public $_page = 'p';
 
     public function initFavoriteParam()
@@ -57,9 +57,9 @@ class ProductfavoriteController extends AppserverTokenController
             'count'         => $count,
             'numPerPage'    => $numPerPage,
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
 
     // 得到产品的一些信息，来显示Favorite 的产品列表。
@@ -67,18 +67,20 @@ class ProductfavoriteController extends AppserverTokenController
     {
         $product_ids = [];
         $favorites = [];
+        $favoritePrimaryKey = Yii::$service->product->favorite->getPrimaryKey();
         foreach ($coll as $one) {
             $p_id = (string)$one['product_id'];
             $product_ids[] = $one['product_id'];
             $favorites[$p_id] = [
                 'updated_at' => $one['updated_at'],
-                'favorite_id' => (string) $one['_id'],
+                'favorite_id' => (string) $one[$favoritePrimaryKey],
             ];
         }
+        $productPrimaryKey = Yii::$service->product->getPrimaryKey();
         // 得到产品的信息
         $product_filter = [
             'where'            => [
-                ['in', '_id', $product_ids],
+                ['in', $productPrimaryKey, $product_ids],
             ],
             'select' => [
                 'name', 'image',
@@ -92,7 +94,8 @@ class ProductfavoriteController extends AppserverTokenController
         $product_arr = [];
         if (is_array($data['coll']) && !empty($data['coll'])) {
             foreach ($data['coll'] as $one) {
-                $p_id = (string) $one['_id'];
+                //$p_id = (string) $one['_id'];
+                $p_id = (string) $one[$productPrimaryKey];
                 $one['updated_at'] = $favorites[$p_id]['updated_at'];
                 $one['favorite_id'] = $favorites[$p_id]['favorite_id'];
                 $main_img = isset($one['image']['main']['image']) ? $one['image']['main']['image'] : '';
@@ -117,7 +120,7 @@ class ProductfavoriteController extends AppserverTokenController
     }
 
     /**
-     * @property $favorite_id|string
+     * @param $favorite_id|string
      */
     public function actionRemove()
     {
@@ -129,15 +132,15 @@ class ProductfavoriteController extends AppserverTokenController
         Yii::$service->product->favorite->currentUserRemove($favorite_id);
             $code = Yii::$service->helper->appserver->status_success;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         } else {
             $code = Yii::$service->helper->appserver->account_favorite_id_not_exist;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
     }
 

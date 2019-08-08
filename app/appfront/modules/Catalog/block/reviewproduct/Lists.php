@@ -16,7 +16,7 @@ use Yii;
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
-class Lists
+class Lists extends \yii\base\BaseObject
 {
     public $product_id;
     public $spu;
@@ -31,8 +31,9 @@ class Lists
     protected $_reviewHelperName = '\fecshop\app\appfront\modules\Catalog\helpers\Review';
     protected $_reviewHelper;
 
-    public function __construct()
+    public function init()
     {
+        parent::init();
         /**
          * 通过Yii::mapGet() 得到重写后的class类名以及对象。Yii::mapGet是在文件@fecshop\yii\Yii.php中
          */
@@ -41,7 +42,7 @@ class Lists
         $reviewHelper::initReviewConfig();
     }
     /**
-     * @property $countTotal | Int
+     * @param $countTotal | Int
      * 得到toolbar的分页部分
      */
     protected function getProductPage($countTotal)
@@ -67,9 +68,12 @@ class Lists
         $this->pageNum = $this->pageNum ? $this->pageNum : 1;
         $this->spu = Yii::$app->request->get('spu');
         $this->product_id = Yii::$app->request->get('_id');
-        $review = Yii::$app->getModule('catalog')->params['review'];
-        $productPageReviewCount = isset($review['productPageReviewCount']) ? $review['productPageReviewCount'] : 10;
-        $this->numPerPage = $productPageReviewCount ? $productPageReviewCount : $this->numPerPage;
+        // $review = Yii::$app->getModule('catalog')->params['review'];
+        $appName = Yii::$service->helper->getAppName();
+        $reviewPageReviewCount = Yii::$app->store->get($appName.'_catalog','review_reviewPageReviewCount');
+            
+        //$productPageReviewCount = $reviewPageReviewCount ? $reviewPageReviewCount : 10;
+        $this->numPerPage = $reviewPageReviewCount ? $reviewPageReviewCount : $this->numPerPage;
     }
 
     public function getLastData()
@@ -122,7 +126,7 @@ class Lists
         return [];
     }
     /**
-     * @property $spu  | String
+     * @param $spu  | String
      * 通过spu得到产品评论
      */
     public function getReviewsBySpu($spu)

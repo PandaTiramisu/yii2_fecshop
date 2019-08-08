@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -23,10 +24,12 @@ class Image extends Service
      * absolute image save floder.
      */
     public $imageFloder = 'media/catalog/category';
+
     /**
      * upload image max size.
      */
     public $maxUploadMSize;
+
     /**
      * allow image type.
      */
@@ -71,7 +74,7 @@ class Image extends Service
     }
 
     /**
-     * @property $param_img_file | Array .
+     * @param $param_img_file | Array .
      * upload image from web page , you can get image from $_FILE['XXX'] ,
      * $param_img_file is get from $_FILE['XXX'].
      * return , if success ,return image saved relative file path , like '/b/i/big.jpg'

@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -25,13 +26,15 @@ class Staticblock extends Service
      * $storagePrex , $storage , $storagePath 为找到当前的storage而设置的配置参数
      * 可以在配置中更改，更改后，就会通过容器注入的方式修改相应的配置值
      */
-    public $storage     = 'StaticBlockMongodb';   // 当前的storage，如果在config中配置，那么在初始化的时候会被注入修改
+    public $storage; //     = 'StaticBlockMysqldb';   // StaticBlockMongodb | StaticBlockMysqldb 当前的storage，如果在config中配置，那么在初始化的时候会被注入修改
+
     /**
      * 设置storage的path路径，
      * 如果不设置，则系统使用默认路径
      * 如果设置了路径，则使用自定义的路径
      */
-    public $storagePath = ''; 
+    public $storagePath = '';
+
     protected $_static_block;
 
     /**
@@ -40,6 +43,12 @@ class Staticblock extends Service
     public function init()
     {
         parent::init();
+        // 从数据库配置中得到值, 设置成当前service存储，是Mysqldb 还是 Mongodb
+        $config = Yii::$app->store->get('service_db', 'article_and_staticblock');
+        $this->storage = 'StaticBlockMysqldb';
+        if ($config == Yii::$app->store->serviceMongodbName) {
+            $this->storage = 'StaticBlockMongodb';
+        }
         $currentService = $this->getStorageService($this);
         $this->_static_block = new $currentService();
         /*
@@ -82,7 +91,7 @@ class Staticblock extends Service
     {
         return [
             'homeUrl'   => Yii::$service->url->homeUrl(),
-            'imgBaseUrl'=> Yii::$service->image->getBaseImgUrl($app),
+            'imgBaseUrl'=> Yii::$service->image->getBaseImgUrl(),
         ];
     }
 
@@ -103,19 +112,19 @@ class Staticblock extends Service
     }
 
     /**
-     * @property $filter|array
+     * @param $filter|array
      * get artile collection by $filter
      * example filter:
      * [
-     * 		'numPerPage' 	=> 20,
-     * 		'pageNum'		=> 1,
-     * 		'orderBy'	=> ['_id' => SORT_DESC, 'sku' => SORT_ASC ],
-     'where'			=> [
-     ['>','price',1],
-     ['<=','price',10]
-     * 			['sku' => 'uk10001'],
-     * 		],
-     * 	'asArray' => true,
+     *     'numPerPage' => 20,
+     *     'pageNum'    => 1,
+     *     'orderBy'    => ['_id' => SORT_DESC, 'sku' => SORT_ASC ],
+     *     'where'      => [
+     *         ['>','price',1],
+     *         ['<=','price',10]
+     *         ['sku' => 'uk10001'],
+     *     ],
+     *     'asArray' => true,
      * ]
      */
     protected function actionColl($filter = '')
@@ -124,7 +133,7 @@ class Staticblock extends Service
     }
 
     /**
-     * @property $one|array , save one data .
+     * @param $one|array , save one data .
      * save $data to cms model,then,add url rewrite info to system service urlrewrite.
      */
     protected function actionSave($one)

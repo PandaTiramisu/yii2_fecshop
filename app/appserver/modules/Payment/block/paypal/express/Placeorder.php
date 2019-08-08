@@ -41,9 +41,9 @@ class Placeorder
         if(!$token){
             $code = Yii::$service->helper->appserver->order_paypal_express_get_token_fail;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         if (is_array($post) && !empty($post)) {
             $post = \Yii::$service->helper->htmlEncode($post);
@@ -74,9 +74,10 @@ class Placeorder
                 } else {
                     $innerTransaction->rollBack();
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $innerTransaction->rollBack();
             }
+            $createdOrder = Yii::$service->order->createdOrder;
             //echo 22;
             if ($genarateStatus) {
                 // 得到当前的订单信息
@@ -84,7 +85,7 @@ class Placeorder
                 //echo $doCheckoutReturn;exit;
                 //echo 333;
                 if ($doCheckoutReturn) {
-                    $increment_id = Yii::$service->order->getSessionIncrementId();
+                    $increment_id = $createdOrder['increment_id'];
                     $innerTransaction = Yii::$app->db->beginTransaction();
                     try {
                         // 插件这个订单是否被支付过，如果被支付过，则回滚
@@ -95,9 +96,9 @@ class Placeorder
                             $data = [
                                 'error' => 'the order has been paid',
                             ];
-                            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                             
-                            return $reponseData;
+                            return $responseData;
                         }
                         $orderPayment = Yii::$service->payment->paypal->updateOrderPayment($doCheckoutReturn,$token);
                         // 如果支付成功，并把信息更新到了订单数据中，则进行下面的操作。
@@ -123,19 +124,19 @@ class Placeorder
                             
                             $code = Yii::$service->helper->appserver->status_success;
                             $data = [];
-                            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                             
-                            return $reponseData;
+                            return $responseData;
                         }else{
                             
                             $innerTransaction->rollBack();
                             $code = Yii::$service->helper->appserver->order_paypal_express_payment_fail;
                             $data = [];
-                            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                             
-                            return $reponseData;
+                            return $responseData;
                         }
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         $innerTransaction->rollBack();
                     }
                 } else {
@@ -161,7 +162,7 @@ class Placeorder
                         }else{
                             $innerTransaction->rollBack();
                         }
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         $innerTransaction->rollBack();
                     }
                 }
@@ -170,9 +171,9 @@ class Placeorder
             }else{
                 $code = Yii::$service->helper->appserver->order_generate_fail;
                 $data = [];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                 
-                return $reponseData;
+                return $responseData;
             }
             
         }
@@ -182,7 +183,7 @@ class Placeorder
         return [];
     }
     /**
-     * @property $token | String 
+     * @param $token | String 
      * 通过paypal的api接口，进行支付下单
      */
     public function doCheckoutPayment($token)
@@ -210,7 +211,7 @@ class Placeorder
     }
 
     /**
-     * @property $post | Array
+     * @param $post | Array
      * 登录用户，保存货运地址到customer address ，然后把生成的
      * address_id 写入到cart中。
      * shipping method写入到cart中
@@ -235,7 +236,7 @@ class Placeorder
     */
 
     /**
-     * @property $post | Array
+     * @param $post | Array
      * @return bool
      *              检查前台传递的信息是否正确。同时初始化一部分类变量
      */
@@ -249,9 +250,9 @@ class Placeorder
             $data = [
                 'error' => Yii::$service->helper->errors->get(','),
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
             
             
         }
@@ -265,18 +266,18 @@ class Placeorder
             $data = [
                 'error' => 'shipping method can not empty',
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         } else {
             //if (!Yii::$service->shipping->ifIsCorrect($shipping_method)) {
             //    $code = Yii::$service->helper->appserver->order_generate_request_post_param_invaild;
             //    $data = [
             //        'error' => 'shipping method is not correct',
             //    ];
-            //    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            //    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             //    
-            //    return $reponseData;
+            //    return $responseData;
             //}
         }
         // 订单备注信息不能超过1500字符
@@ -285,7 +286,7 @@ class Placeorder
         if ($order_remark && $orderRemarkStrMaxLen) {
             $order_remark_strlen = strlen($order_remark);
             if ($order_remark_strlen > $orderRemarkStrMaxLen) {
-                Yii::$service->helper->errors->add('order remark string length can not gt '.$orderRemarkStrMaxLen);
+                Yii::$service->helper->errors->add('order remark string length can not gt {orderRemarkStrMaxLen}', ['orderRemarkStrMaxLen' => $orderRemarkStrMaxLen]);
                 
                 return false;
             } else {

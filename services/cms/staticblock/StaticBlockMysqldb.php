@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -20,19 +21,23 @@ use fecshop\services\Service;
 class StaticBlockMysqldb extends Service implements StaticBlockInterface
 {
     public $numPerPage = 20;
+
     protected $_staticBlockModelName = '\fecshop\models\mysqldb\cms\StaticBlock';
+
     protected $_staticBlockModel;
+
     /**
      *  language attribute.
      */
     protected $_lang_attr = [
-            'title',
-            'content',
-        ];
+        'title',
+        'content',
+    ];
     
-    public function init(){
+    public function init()
+    {
         parent::init();
-        list($this->_staticBlockModelName,$this->_staticBlockModel) = Yii::mapGet($this->_staticBlockModelName);  
+        list($this->_staticBlockModelName, $this->_staticBlockModel) = Yii::mapGet($this->_staticBlockModelName);
     }
     
     public function getPrimaryKey()
@@ -105,7 +110,7 @@ class StaticBlockMysqldb extends Service implements StaticBlockInterface
     }
 
     /**
-     * @property $one|array
+     * @param $one|array
      * save $data to cms model,then,add url rewrite info to system service urlrewrite.
      */
     public function save($one)
@@ -113,14 +118,14 @@ class StaticBlockMysqldb extends Service implements StaticBlockInterface
         $currentDateTime = \fec\helpers\CDate::getCurrentDateTime();
         $primaryVal = isset($one[$this->getPrimaryKey()]) ? $one[$this->getPrimaryKey()] : '';
         if (!($this->validateIdentify($one))) {
-            Yii::$service->helper->errors->add('StaticBlock: identify存在，您必须定义一个唯一的identify ');
+            Yii::$service->helper->errors->add('Static block: identify exit, You must define a unique identify');
 
             return;
         }
         if ($primaryVal) {
             $model = $this->_staticBlockModel->findOne($primaryVal);
             if (!$model) {
-                Yii::$service->helper->errors->add('static block '.$this->getPrimaryKey().' is not exist');
+                Yii::$service->helper->errors->add('Static block {primaryKey} is not exist', ['primaryKey' => $this->getPrimaryKey()]);
 
                 return;
             }
@@ -175,10 +180,8 @@ class StaticBlockMysqldb extends Service implements StaticBlockInterface
             }
         } else {
             $id = $ids;
-            foreach ($ids as $id) {
-                $model = $this->_staticBlockModel->findOne($id);
-                $model->delete();
-            }
+            $model = $this->_staticBlockModel->findOne($id);
+            $model->delete();
         }
 
         return true;

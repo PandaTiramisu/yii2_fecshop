@@ -8,6 +8,7 @@
  */
 ?>
 <div class="main container one-column">
+<?= Yii::$service->page->widget->render('breadcrumbs',$this); ?>
 <?php if(!empty($identity)):  ?>
 	<div>
 		<?= Yii::$service->page->translate->__('We\'ve sent a message to the email address'); ?> <?=  $identity['email'] ?>
@@ -27,7 +28,7 @@
 		<?php
 			$param = ['logUrlB' => '<a href="'. $forgotPasswordUrl.' ">','logUrlE' => '</a> '];
 		?>
-		<?= Yii::$service->page->translate->__('Email address do not exist, please {logUrlB} click here {logUrlE} to re-enter!',$param); ?> 
+		<?= Yii::$service->page->translate->__('Email address do not exist, please {logUrlB} click here {logUrlE} to re-enter!',$param); ?>
 	</div>
 	<div>
 <?php  endif; ?>

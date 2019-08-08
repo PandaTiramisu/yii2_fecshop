@@ -50,13 +50,17 @@ class Index
     }
     public function getLastData()
     {
-        $productImgSize = Yii::$app->controller->module->params['productImgSize'];
-        $productImgMagnifier = Yii::$app->controller->module->params['productImgMagnifier'];
+        $reviewHelper = $this->_reviewHelper;
+        //$productImgSize = Yii::$app->controller->module->params['productImgSize'];
+        
+        $appName = Yii::$service->helper->getAppName();
+        $product_middle_img_width = Yii::$app->store->get($appName.'_catalog','product_middle_img_width');
         if (!$this->initProduct()) {
             Yii::$service->url->redirect404();
             return;
         }
-        $reviewHelper = $this->_reviewHelper;
+        $productPrimaryKey = Yii::$service->product->getPrimaryKey();
+        
         $reviewHelper::initReviewConfig();
         list($review_count, $reviw_rate_star_average, $reviw_rate_star_info) = $reviewHelper::getReviewAndStarCount($this->_product);
         $this->filterProductImg($this->_product['image']);
@@ -77,15 +81,12 @@ class Index
             'price_info'                => $this->getProductPriceInfo(),
             'tier_price'                => $this->_product['tier_price'],
             'media_size' => [
-                'small_img_width'       => $productImgSize['small_img_width'],
-                'small_img_height'      => $productImgSize['small_img_height'],
-                'middle_img_width'      => $productImgSize['middle_img_width'],
+                'middle_img_width'      => $product_middle_img_width,
             ],
-            'productImgMagnifier'       => $productImgMagnifier,
             'options'                   => $this->getSameSpuInfo(),
             'custom_option'             => $this->_product['custom_option'],
             'description'               => Yii::$service->store->getStoreAttrVal($this->_product['description'], 'description'),
-            '_id'                       => $this->_product['_id'],
+            '_id'                       => $this->_product[$productPrimaryKey],
             'buy_also_buy'              => $this->getProductBySkus($skus),
         ];
     }
@@ -119,25 +120,36 @@ class Index
                 //var_dump($info);
                 if (isset($this->_product[$attr]) && $this->_product[$attr]) {
                     $attrVal = $this->_product[$attr];
+                    // get translate 
                     if (isset($info['display']['lang']) && $info['display']['lang'] && is_array($attrVal)) {
                         $attrVal = Yii::$service->store->getStoreAttrVal($attrVal, $attr);
-                    }
-                    if ($attrVal && !is_array($attrVal)) {
-                        $attr = str_replace('_', ' ', $attr);
-                        $attr = str_replace('-', ' ', $attr);
-                        $attr = Yii::$service->page->translate->__($attr);
+                    } else if ($attrVal && !is_array($attrVal)) {
                         $attrVal = Yii::$service->page->translate->__($attrVal);
+                    }
+                    $attr = Yii::$service->page->translate->__($attr);
+                    $gArr[$attr] = $attrVal;
+                } else if (isset($this->_product['attr_group_info']) && is_array($this->_product['attr_group_info'])) {
+                    $attr_group_info = $this->_product['attr_group_info'];
+                    if (isset($attr_group_info[$attr]) && $attr_group_info[$attr]) {
+                        $attrVal = $attr_group_info[$attr];
+                        // get translate 
+                        if (isset($info['display']['lang']) && $info['display']['lang'] && is_array($attrVal)) {
+                            $attrVal = Yii::$service->store->getStoreAttrVal($attrVal, $attr);
+                        } else if ($attrVal && !is_array($attrVal)) {
+                            $attrVal = Yii::$service->page->translate->__($attrVal);
+                        }
+                        $attr = Yii::$service->page->translate->__($attr);
                         $gArr[$attr] = $attrVal;
                     }
                 }
             }
         }
         
-        //var_dump($gArr);
         return $gArr;
     }
+    
     /**
-     * @property $product_images | Array ，产品的图片属性
+     * @param $product_images | Array ，产品的图片属性
      * 根据图片数组，得到橱窗图，和描述图
      * 橱窗图：在产品详细页面顶部，放大镜显示部分的产品列表
      * 描述图，在产品description文字描述后面显示的产品图片。
@@ -168,9 +180,9 @@ class Index
     }
     
     /**废弃
-     * @property $data | Array 和当前产品的spu相同，但sku不同的产品  数组。
-     * @property $current_size | String 当前产品的size值
-     * @property $current_color | String 当前产品的颜色值
+     * @param $data | Array 和当前产品的spu相同，但sku不同的产品  数组。
+     * @param $current_size | String 当前产品的size值
+     * @param $current_color | String 当前产品的颜色值
      * @return array 分别为
      *               $all_attr1 所有的颜色数组
      *               $all_attr2  所有的尺码数组
@@ -232,25 +244,14 @@ class Index
     }
 
     /**
-     * @property $select | Array ， 需要查询的字段。
+     * @param $select | Array ， 需要查询的字段。
      * 得到当前spu下面的所有的sku的数组、
      * 这个是为了产品详细页面的spu下面的产品切换，譬如同一spu下的不同的颜色尺码切换。
      */
     protected function getSpuData($select)
     {
         $spu = $this->_product['spu'];
-        $select = array_merge($select, $this->_productSpuAttrArr);
-
-        $filter = [
-            'select'    => $select,
-            'where'            => [
-                ['spu' => $spu],
-            ],
-            'asArray' => true,
-        ];
-        $coll = Yii::$service->product->coll($filter);
-
-        return $coll['coll'];
+        return Yii::$service->product->spuCollData($select, $this->_productSpuAttrArr, $spu);
     }
 
     /**
@@ -273,7 +274,12 @@ class Index
 
         $this->_currentSpuAttrValArr = [];
         foreach ($this->_productSpuAttrArr as $spuAttr) {
-            $spuAttrVal = $this->_product[$spuAttr];
+            if (isset($this->_product['attr_group_info']) && $this->_product['attr_group_info']) {  // mysql
+                $attr_group_info = $this->_product['attr_group_info'];
+                $spuAttrVal = $attr_group_info[$spuAttr];
+            } else {
+                $spuAttrVal = isset($this->_product[$spuAttr]) ? $this->_product[$spuAttr] : '';
+            }
             if ($spuAttrVal) {
                 $this->_currentSpuAttrValArr[$spuAttr] = $spuAttrVal;
             } else {
@@ -390,7 +396,7 @@ class Index
     }
 
     /**
-     *	@property $data | Array  各个尺码对应的产品数组
+     *	@param $data | Array  各个尺码对应的产品数组
      *  @return array 排序后的数组
      *		该函数，按照在配置中的size的顺序，将$data中的数据进行排序，让其按照尺码的由小到大的顺序
      * 		排列，譬如 ：s,m,l,xl,xxl,xxxl等
@@ -487,7 +493,9 @@ class Index
     // 面包屑导航
     protected function breadcrumbs($name)
     {
-        if (Yii::$app->controller->module->params['category_breadcrumbs']) {
+        $appName = Yii::$service->helper->getAppName();
+        $category_breadcrumbs = Yii::$app->store->get($appName.'_catalog','product_breadcrumbs');
+        if ($category_breadcrumbs == Yii::$app->store->enable) {
             $parent_info = Yii::$service->category->getAllParentInfo($this->_category['parent_id']);
             if (is_array($parent_info) && !empty($parent_info)) {
                 foreach ($parent_info as $info) {

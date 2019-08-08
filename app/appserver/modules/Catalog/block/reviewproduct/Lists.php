@@ -42,7 +42,7 @@ class Lists
         $reviewHelper::initReviewConfig();
     }
     /**
-     * @property $countTotal | Int
+     * @param $countTotal | Int
      * 得到toolbar的分页部分
      */
     protected function getProductPage($countTotal)
@@ -68,9 +68,12 @@ class Lists
         $this->pageNum = $this->pageNum ? $this->pageNum : 1;
         //$this->spu = Yii::$app->request->get('spu');
         $this->product_id = Yii::$app->request->get('product_id');
-        $review = Yii::$app->getModule('catalog')->params['review'];
-        $productPageReviewCount = isset($review['reviewPageReviewCount']) ? $review['reviewPageReviewCount'] : 10;
-        $this->numPerPage = $productPageReviewCount ? $productPageReviewCount : $this->numPerPage;
+        // $review = Yii::$app->getModule('catalog')->params['review'];
+        $appName = Yii::$service->helper->getAppName();
+        $reviewPageReviewCount = Yii::$app->store->get($appName.'_catalog','review_reviewPageReviewCount');
+            
+        //$productPageReviewCount = $reviewPageReviewCount ? $reviewPageReviewCount : 10;
+        $this->numPerPage = $reviewPageReviewCount ? $reviewPageReviewCount : $this->numPerPage;
     }
 
     public function getLastData()
@@ -80,17 +83,17 @@ class Lists
             
             $code = Yii::$service->helper->appserver->product_id_not_exist;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         $product = Yii::$service->product->getByPrimaryKey($this->product_id);
         if (!$product['spu']) {
             $code = Yii::$service->helper->appserver->product_not_active;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         $this->spu = $product['spu'];
         $price_info = $this->getProductPriceInfo($product);
@@ -124,13 +127,13 @@ class Lists
                 'reviw_rate_star_average'   => $reviw_rate_star_average,
                 'reviw_rate_star_info'      => $reviw_rate_star_info,
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
     }
     /**
-     * @property $spu  | String
+     * @param $spu  | String
      * 通过spu得到产品评论
      */
     public function getReviewsBySpu($spu)

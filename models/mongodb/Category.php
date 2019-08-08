@@ -55,13 +55,13 @@ class Category extends ActiveRecord
             'title',
             'meta_description',
             'meta_keywords',
-            'include_in_menu',
-            'is_feature',
-            'available_sort_by',
-            'default_sort_by',
-            'theme',
-            'active_from',
-            'active_to',
+            //'include_in_menu',
+            //'is_feature',
+            //'available_sort_by',
+            //'default_sort_by',
+            //'theme',
+            //'active_from',
+            //'active_to',
             'created_at',
             'updated_at',
             'created_user_id',
@@ -72,6 +72,8 @@ class Category extends ActiveRecord
 
 
             */
+            'origin_mysql_parent_id',  // 用户mysql数据同步到mongodb，这里保存的是mysql数据库中的parent_id
+            'origin_mysql_id',  //  用户mysql数据同步到mongodb，这里保存的是mysql数据库中的id
        ];
     }
 }

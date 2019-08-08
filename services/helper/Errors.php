@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -13,29 +14,32 @@ use fecshop\services\Service;
 use Yii;
 
 /**
- * Helper Errors services.
+ * Errors sub-service of helper service.
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
 class Errors extends Service
 {
     protected $_errors = false;
+
     public $status = true;
 
     /**
-     * @property $errros | String , 错误信息
-     * @property $arr | Array 变量替换对应的数组
+     * 添加一条错误信息
+     * @param string $errors 错误信息，支持模板格式
+     * @param array $arr 错误信息模板中变量替换对应的数组
      * Yii::$service->helper->errors->add('Hello, {username}!', ['username' => $username])
      */
-    public function add($errros, $arr = [])
+    public function add($errors, $arr = [])
     {
-        if ($errros) {
-            $errros = Yii::$service->page->translate->__($errros, $arr);
-            $this->_errors[] = $errros;
+        if ($errors) {
+            $errors = Yii::$service->page->translate->__($errors, $arr);
+            $this->_errors[] = $errors;
         }
     }
+
     /**
-     * @property $model_errors | Array
+     * @param $model_errors | Array
      * Yii2的model在使用rules验证数据格式的时候，报错保存在errors中
      * 本函数将errors的内容添加到errors services中。
      */
@@ -57,7 +61,8 @@ class Errors extends Service
         }
     }
     
-    public function getModelErrorsStrFormat($model_errors){
+    public function getModelErrorsStrFormat($model_errors)
+    {
         $error_arr = [];
         if (is_array($model_errors)) {
             foreach ($model_errors as $errors) {
@@ -75,7 +80,7 @@ class Errors extends Service
     }
 
     /**
-     * @property $separator 如果是false，则返回数组，
+     * @param $separator 如果是false，则返回数组，
      *						如果是true则返回用| 分隔的字符串
      *						如果是传递的分隔符的值，譬如“,”，则返回用这个分隔符分隔的字符串
      */
@@ -83,7 +88,7 @@ class Errors extends Service
     {
         if ($errors = $this->_errors) {
             $this->_errors = false;
-            if(is_array($errors) && !empty($errors)){
+            if (is_array($errors) && !empty($errors)) {
                 if ($separator) {
                     if ($separator === true) {
                         $separator = '|';

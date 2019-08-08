@@ -6,8 +6,10 @@
  * @copyright Copyright (c) 2016 FecShop Software LLC
  * @license http://www.fecshop.com/license/
  */
+use fec\helpers\CRequest; 
 ?>
 <div class="main container two-columns-left">
+    <?= Yii::$service->page->widget->render('breadcrumbs',$this); ?>
 	<div class="col-main account_center">
 		<div class="std">
 			<div style="margin:4px 0 0">
@@ -47,7 +49,7 @@
 											?>
 										</div>
 										<div class="favorite-Operation" style="display:inline-block;float:right; margin-top: 0px;">
-											<a href="<?= Yii::$service->url->getUrl('customer/productfavorite',['type'=>'remove','favorite_id' => $one['favorite_id']]); ?>">
+											<a href='javascript:doPost("<?= Yii::$service->url->getUrl('customer/productfavorite') ?>", {"type":"remove", "favorite_id":"<?= $one['favorite_id'] ?>", "<?= CRequest::getCsrfName() ?>": "<?= CRequest::getCsrfValue() ?>" })' >
 												<?= Yii::$service->page->translate->__('Delete');?>
 											</a>
 										</div>

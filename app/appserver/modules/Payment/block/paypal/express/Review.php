@@ -38,9 +38,9 @@ class Review
             
             $code = Yii::$service->helper->appserver->order_generate_cart_product_empty;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         $currency_info = Yii::$service->page->currency->getCurrencyInfo();
         $this->initAddress();
@@ -72,9 +72,9 @@ class Review
             'countryArr'                => $this->_countrySelect,
             'country'                   => $this->_country,
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
 
     /**
@@ -304,7 +304,7 @@ class Review
     }
 
     /**
-     * @property $current_shipping_method | String  当前选择的货运方式
+     * @param $current_shipping_method | String  当前选择的货运方式
      * @return Array，数据格式为：
      *                                    [
      *                                    'method'=> $method,
@@ -377,9 +377,9 @@ class Review
     }
 
     /**
-     * @property $weight | Float , 总量
-     * @property $shipping_method | String  $shipping_method key
-     * @property $country | String  国家
+     * @param $weight | Float , 总量
+     * @param $shipping_method | String  $shipping_method key
+     * @param $country | String  国家
      * @return array ， 通过上面的三个参数，得到各个运费方式对应的运费等信息。
      */
     public function getShippingArr($weight, $current_shipping_method, $country, $region)
@@ -425,17 +425,17 @@ class Review
             
             $code = Yii::$service->helper->appserver->order_paypal_express_get_token_fail;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         if (!$getPayerID) {
             
             $code = Yii::$service->helper->appserver->order_paypal_express_get_PayerID_fail;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
 
         $methodName_ = 'GetExpressCheckoutDetails';
@@ -449,9 +449,9 @@ class Review
             
             $code = Yii::$service->helper->appserver->order_paypal_express_get_apiAddress_fail;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
     }
 

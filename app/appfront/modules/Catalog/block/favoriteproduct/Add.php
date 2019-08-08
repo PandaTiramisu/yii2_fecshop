@@ -15,19 +15,20 @@ use Yii;
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
-class Add
+class Add extends \yii\base\BaseObject
 {
     /**
      * 用户添加收藏产品
      */
     public function getLastData()
     {
-        $product_id = Yii::$app->request->get('product_id');
+        $product_id = Yii::$app->request->post('product_id');
+       
         //没有登录的用户跳转到登录页面
         if (Yii::$app->user->isGuest) {
-            $url = Yii::$service->url->getCurrentUrl();
+            $product = Yii::$service->product->getByPrimaryKey($product_id);
+            $url = Yii::$service->url->getUrl($product['url_key']);
             Yii::$service->customer->setLoginSuccessRedirectUrl($url);
-
             return Yii::$service->url->redirectByUrlKey('customer/account/login');
         }
 
@@ -38,9 +39,11 @@ class Add
         if (!$addStatus) {
             Yii::$service->page->message->addByHelperErrors();
         }
-        $favoriteParam = Yii::$app->getModule('catalog')->params['favorite'];
+        //$favoriteParam = Yii::$app->getModule('catalog')->params['favorite'];
+        $appName = Yii::$service->helper->getAppName();
+        $category_breadcrumbs = Yii::$app->store->get($appName.'_catalog','favorite_addSuccessRedirectFavoriteList');
         // 跳转。
-        if (isset($favoriteParam['addSuccessRedirectFavoriteList']) && $favoriteParam['addSuccessRedirectFavoriteList']) {
+        if ($category_breadcrumbs == Yii::$app->store->enable) {
             return Yii::$service->url->redirectByUrlKey('customer/productfavorite');
         } else {
             $product = Yii::$service->product->getByPrimaryKey($product_id);

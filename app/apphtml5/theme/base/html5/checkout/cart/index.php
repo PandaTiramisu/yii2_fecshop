@@ -9,6 +9,7 @@
 ?>
 <?php
 use fecshop\app\apphtml5\helper\Format;
+use fec\helpers\CRequest;
 ?>
 <div class="main container one-column">
 	<div class="col-main">
@@ -67,9 +68,7 @@ use fecshop\app\apphtml5\helper\Format;
 							</div>
 						<?php endforeach; ?>
 					<?php endif; ?>
-
 				</div>
-				
 				<div class="cart-collaterals">
 					<div class="col2-set">
 						<div class="col-1">
@@ -80,23 +79,24 @@ use fecshop\app\apphtml5\helper\Format;
 									<h2><?= Yii::$service->page->translate->__('Discount Codes');?></h2>
 									<div class="discount-form">
 										<div class="input-box">
-											<div class="ui-input-text ui-body-inherit ui-corner-all ui-shadow-inset"><input style="color:#777;" class="input-text" id="coupon_code" name="coupon_code" value=""></div>
+											<div class="ui-input-text ui-body-inherit ui-corner-all ui-shadow-inset">
+												<input type="hidden" class="couponType"  value="<?= $cart_info['coupon_code'] ? 1 : 2 ; ?>"  />
+												<input style="color:#777;" class="input-text" id="coupon_code" name="coupon_code" value="<?= $cart_info['coupon_code']; ?>">
+											</div>
 										</div>
 										<div class="buttons-coupon">
-											<a external data-role="button" href="javascript:void(0)" onclick="cartcouponsubmit()" class="submitbutton ui-link ui-btn ui-shadow ui-corner-all" role="button">
+											<a external data-role="button" href="javascript:void(0)"  class="add_coupon_submit submitbutton ui-link ui-btn ui-shadow ui-corner-all" role="button">
                                                 <span>
-                                                    <span><?= Yii::$service->page->translate->__('Add Coupon'); ?></span>
+                                                    <span><?= Yii::$service->page->translate->__($cart_info['coupon_code'] ? 'Cancel Coupon' : 'Add Coupon') ; ?></span>
                                                 </span>
                                             </a>
-											
 										</div>
+										<div class="clear"></div>
+										<div class="coupon_add_log"></div>
 									</div>
 								</div>
 							</form>
 							<div class="clear"></div>
-							
-							
-							
 						</div>
 					</div>
 					<div class="cart_cost">
@@ -104,55 +104,45 @@ use fecshop\app\apphtml5\helper\Format;
 							<div class="col-66"><?= Yii::$service->page->translate->__('Sub Total');?> :  </div>
 							<div class="col-33"><?=  $currency_info['symbol'];  ?><?= Format::price($cart_info['product_total']); ?></div>
 						</div>
-                        
                         <div class="row no-gutter">
 							<div class="col-66"><?= Yii::$service->page->translate->__('Sub Weight');?> :  </div>
 							<div class="col-33"><?=  $currency_info['symbol'];  ?><?= Format::price($cart_info['product_weight']); ?> Kg</div>
 						</div>
-                        
                         <div class="row no-gutter">
 							<div class="col-66"><?= Yii::$service->page->translate->__('Sub Volume');?> :  </div>
 							<div class="col-33"><?=  $currency_info['symbol'];  ?><?= Format::price($cart_info['product_volume']); ?> c㎡</div>
 						</div>
-                        
-						
 						<div class="row no-gutter">
 							<div class="col-66"><?= Yii::$service->page->translate->__('Shipping Cost');?>  : </div>
 							<div class="col-33"><?=  $currency_info['symbol'];  ?><?= Format::price($cart_info['shipping_cost']); ?></div>
 						</div>
-						
-						
 						<div class="row no-gutter">
 							<div class="col-66"><?= Yii::$service->page->translate->__('Discount');?>  :</div>
 							<div class="col-33">-<?=  $currency_info['symbol'];  ?><?= Format::price($cart_info['coupon_cost']); ?>%</div>
 						</div>
-						
 						<div class="row no-gutter">
 							<div class="col-66"><?= Yii::$service->page->translate->__('Grand Total');?>  :</div>
 							<div class="col-33"><?=  $currency_info['symbol'];  ?><?= Format::price($cart_info['grand_total']) ?></div>
 						</div>
 					</div>
 					<div class="totals cart-totals">
-						
 						<div class="proceed_to_checkout">
-							
 							<div class="row no-gutter">
 								<div class="col-50">
 									<button onclick="location.href='<?= Yii::$service->url->getUrl('checkout/onepage');  ?>'" type="button" title="Proceed to Checkout" class="button btn-proceed-checkout btn-checkout"><span><span><?= Yii::$service->page->translate->__('Proceed to Pay');?></span></span></button>
-							
-								</div>
+                                </div>
+                                <?php if ($enablePaypalExpress): ?>
 								<div class="col-50">
 									<a  external class="express_paypal" href="<?= Yii::$service->url->getUrl('payment/paypal/express/start');    ?>">
 										<img src="<?= Yii::$service->image->getImgUrl('/images/pay.png') ?>"  />
 									</a>
-									
 								</div>
+                                <?php endif;  ?>
 							</div>
 						</div>
 					</div>
 					<div class="clear"></div>
 				</div>
-				
 			</div>
 		</div>
 	<?php else: ?>
@@ -178,6 +168,8 @@ use fecshop\app\apphtml5\helper\Format;
 <script>
 	// add to cart js	
 <?php $this->beginBlock('changeCartInfo') ?>
+csrfName = "<?= CRequest::getCsrfName() ?>";
+csrfVal = "<?= CRequest::getCsrfValue() ?>";
 $(document).ready(function(){
 	// set select all checkbox
     selectall = "<?= Yii::$app->request->get('selectall') ?>";
@@ -213,17 +205,20 @@ $(document).ready(function(){
 				item_id:$item_id,
 				up_type:"less_one"
 			};
+			$data[csrfName] = csrfVal;
 			$.ajax({
 				async:true,
 				timeout: 6000,
 				dataType: 'json', 
-				type:'get',
+				type:'post',
 				data: $data,
 				url:updateCartInfoUrl,
 				success:function(data, textStatus){ 
 					if(data.status == 'success'){
 						window.location.href=currentUrl;
-					}
+					} else {
+                        alert(data.content);
+                    }
 				},
 				error:function (XMLHttpRequest, textStatus, errorThrown){}
 			});
@@ -236,17 +231,20 @@ $(document).ready(function(){
 			item_id:$item_id,
 			up_type:"add_one"
 		};
+		$data[csrfName] = csrfVal;
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:updateCartInfoUrl,
 			success:function(data, textStatus){ 
 				if(data.status == 'success'){
 					window.location.href=currentUrl;
-				}
+				} else {
+                    alert(data.content);
+                }
 			},
 			error:function (XMLHttpRequest, textStatus, errorThrown){}
 		});
@@ -260,11 +258,12 @@ $(document).ready(function(){
 			item_id:$item_id,
 			up_type:"remove"
 		};
+		$data[csrfName] = csrfVal;
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:updateCartInfoUrl,
 			success:function(data, textStatus){ 
@@ -285,11 +284,12 @@ $(document).ready(function(){
 			item_id:$item_id,
 			checked:checked
 		};
+		$data[csrfName] = csrfVal;
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:selectOneProductUrl,
 			success:function(data, textStatus){ 
@@ -308,12 +308,13 @@ $(document).ready(function(){
 		$data = {
 			checked:checked
 		};
+		$data[csrfName] = csrfVal;
         selectCurrentUrl = currentUrl + '?selectall=' + checked;
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:selectAllProductUrl,
 			success:function(data, textStatus){ 
@@ -324,7 +325,7 @@ $(document).ready(function(){
 			error:function (XMLHttpRequest, textStatus, errorThrown){}
 		});
 	});
-    
+
 	$(".add_coupon_submit").click(function(){
 		coupon_code = $("#coupon_code").val();
 		coupon_type = $(".couponType").val();
@@ -335,15 +336,16 @@ $(document).ready(function(){
 			coupon_url = "<?=  Yii::$service->url->getUrl('checkout/cart/cancelcoupon'); ?>";
 		}
 		if(!coupon_code){
-			alert("coupon can not empty!");
+			//alert("coupon can not empty!");
 		}
-		//coupon_url = $("#discount-coupon-form").attr("action");
+		$data = {"coupon_code":coupon_code};
+		$data[csrfName] = csrfVal;
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'post',
-			data: {"coupon_code":coupon_code},
+			type: 'post',
+			data: $data,
 			url:coupon_url,
 			success:function(data, textStatus){ 
 				if(data.status == 'success'){

@@ -51,6 +51,7 @@ class Getproductcategory
 
         //$menu = $this->getMenArray($product_id);
         $menu = Yii::$service->category->getTreeArr();
+       
         $category_ids = $this->getCategoryByProductId($product_id);
         $str = '';
         if (is_array($menu) && !empty($menu)) {
@@ -70,12 +71,7 @@ class Getproductcategory
     // 得到產品的分類id
     public function getCategoryByProductId($product_id)
     {
-        $product = Yii::$service->product->getByPrimaryKey($product_id);
-        if (isset($product['category']) && !empty($product['category']) && is_array($product['category'])) {
-            return $product['category'];
-        }
-
-        return [];
+        return Yii::$service->product->getCategoryIdsByProductId($product_id);
     }
 
     public function getMenu($product_id)

@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -21,11 +22,13 @@ class CategoryMongodb extends Service implements CategoryInterface
     public $numPerPage = 20;
     
     protected $_categoryModelName = '\fecshop\models\mongodb\Category';
+
     protected $_categoryModel;
     
-    public function init(){
+    public function init()
+    {
         parent::init();
-        list($this->_categoryModelName,$this->_categoryModel) = Yii::mapGet($this->_categoryModelName);  
+        list($this->_categoryModelName, $this->_categoryModel) = Yii::mapGet($this->_categoryModelName);
     }
     
     /**
@@ -34,26 +37,32 @@ class CategoryMongodb extends Service implements CategoryInterface
     public function getByPrimaryKey($primaryKey)
     {
         if ($primaryKey) {
-             
             return $this->_categoryModel->findOne($primaryKey);
         } else {
             return new $this->_categoryModelName;
         }
     }
-    
+    /**
+     * 通过主键，得到Category对象。
+     */
+    public function findOne($where)
+    {
+        $one = $this->_categoryModel->findOne($where);
+        
+        return $one;
+    }
     /**
      * 通过url_key，得到Category对象。
      */
     public function getByUrlKey($urlKey)
     {
         if ($urlKey) {
-            $urlKey = "/".trim($urlKey,"/");
+            $urlKey = "/".trim($urlKey, "/");
             return $this->_categoryModel->findOne(['url_key' => $urlKey]);
         } else {
             return new $this->_categoryModelName;
         }
     }
-    
     
     /**
      * 返回主键。
@@ -62,21 +71,24 @@ class CategoryMongodb extends Service implements CategoryInterface
     {
         return '_id';
     }
+
     /**
      * 得到分类激活状态的值
      */
-    public function getCategoryEnableStatus(){
+    public function getCategoryEnableStatus()
+    {
         $model = $this->_categoryModel;
         return $model::STATUS_ENABLE;
     }
+
     /**
      * 得到分类在menu中显示的状态值
      */
-    public function getCategoryMenuShowStatus(){
+    public function getCategoryMenuShowStatus()
+    {
         $model = $this->_categoryModel;
         return $model::MENU_SHOW;
     }
-    
 
     /*
      * example filter:
@@ -102,6 +114,11 @@ class CategoryMongodb extends Service implements CategoryInterface
             'count'=> $query->limit(null)->offset(null)->count(),
         ];
     }
+    
+    public function apiColl($filter = '')
+    {
+        return $this->coll($filter);
+    }
 
     /**
      *  得到总数.
@@ -115,8 +132,8 @@ class CategoryMongodb extends Service implements CategoryInterface
     }
 
     /**
-     * @property $one|array , save one data . 分类数组
-     * @property $originUrlKey|string , 分类的在修改之前的url key.（在数据库中保存的url_key字段，如果没有则为空）
+     * @param $one|array , save one data . 分类数组
+     * @param $originUrlKey|string , 分类的在修改之前的url key.（在数据库中保存的url_key字段，如果没有则为空）
      * 保存分类，同时生成分类的伪静态url（自定义url），如果按照name生成的url或者自定义的urlkey存在，系统则会增加几个随机数字字符串，来增加唯一性。
      */
     public function save($one, $originUrlKey = 'catalog/category/index')
@@ -126,7 +143,7 @@ class CategoryMongodb extends Service implements CategoryInterface
         if ($primaryVal) {
             $model = $this->_categoryModel->findOne($primaryVal);
             if (!$model) {
-                Yii::$service->helper->errors->add('Category '.$this->getPrimaryKey().' is not exist');
+                Yii::$service->helper->errors->add('Category {primaryKey} is not exist', ['primaryKey' => $this->getPrimaryKey()]);
 
                 return false;
             }
@@ -153,11 +170,11 @@ class CategoryMongodb extends Service implements CategoryInterface
         $one['status']    = (int)$one['status'];
         $one['menu_show'] = (int)$one['menu_show'];
         $allowMenuShowArr = [ $model::MENU_SHOW, $model::MENU_NOT_SHOW];
-        if (!in_array($one['menu_show'],$allowMenuShowArr)) {
+        if (!in_array($one['menu_show'], $allowMenuShowArr)) {
             $one['menu_show'] = $model::MENU_SHOW;
         }
         $allowStatusArr = [ $model::STATUS_ENABLE, $model::STATUS_DISABLE];
-        if (!in_array($one['status'],$allowStatusArr)) {
+        if (!in_array($one['status'], $allowStatusArr)) {
             $one['status'] = $model::STATUS_ENABLE;
         }
         $saveStatus = Yii::$service->helper->ar->save($model, $one);
@@ -170,9 +187,40 @@ class CategoryMongodb extends Service implements CategoryInterface
 
         return $model;
     }
+     /** 
+     * @param $arr | array
+     * 用于同步mysql数据库到mongodb数据库中
+     */
+    public function sync($arr)
+    {
+        $originUrlKey = 'catalog/category/index';
+        $origin_mysql_parent_id = $arr['parent_id'];
+        $origin_mysql_id = $arr['id'];
+        unset($arr['parent_id']);
+        unset($arr['id']);
+        $model = $this->_categoryModel->findOne([
+            'origin_mysql_id' => $origin_mysql_id
+        ]);
+        if (!$model['origin_mysql_id']) {
+            $model = new $this->_categoryModelName;
+            $model->created_at = time();
+        }
+        
+        $model->origin_mysql_id = $origin_mysql_id;
+        $model->origin_mysql_parent_id = $origin_mysql_parent_id;
+        //$arr = $this->serializeSaveData($arr);
+        $saveStatus = Yii::$service->helper->ar->save($model, $arr);
+        
+        $originUrl = $originUrlKey.'?'.$this->getPrimaryKey() .'='. $model->_id;
+        $originUrlKey = isset($model['url_key']) ? $model['url_key'] : '';
+        $defaultLangTitle = Yii::$service->fecshoplang->getDefaultLangAttrVal($arr['name'], 'name');
+        $urlKey = Yii::$service->url->saveRewriteUrlKeyByStr($defaultLangTitle, $originUrl, $originUrlKey);
+        $model->url_key = $urlKey;
+        $model->save();
+    }
 
     /**
-     * @property $id | String  主键值
+     * @param $id | String  主键值
      * 通过主键值找到分类，并且删除分类在url rewrite表中的记录
      * 查看这个分类是否存在子分类，如果存在子分类，则删除所有的子分类，以及子分类在url rewrite表中对应的数据。
      */
@@ -193,7 +241,7 @@ class CategoryMongodb extends Service implements CategoryInterface
                     $model->delete();
                     $this->removeChildCate($id);
                 } else {
-                    Yii::$service->helper->errors->add("Category Remove Errors:ID:$id is not exist.");
+                    Yii::$service->helper->errors->add("Category Remove Errors:ID:{id} is not exist.", ['id' => $id]);
 
                     $deleteAll = false;
                 }
@@ -209,7 +257,7 @@ class CategoryMongodb extends Service implements CategoryInterface
                 $model->delete();
                 $this->removeChildCate($id);
             } else {
-                Yii::$service->helper->errors->add("Category Remove Errors:ID:$id is not exist.");
+                Yii::$service->helper->errors->add("Category Remove Errors:ID:{id} is not exist." , ['id' => $id]);
 
                 return false;
             }
@@ -238,7 +286,7 @@ class CategoryMongodb extends Service implements CategoryInterface
      *  数组中只有  id  name(default language), child(子分类) 等数据。
      *  目前此函数仅仅用于后台对分类的编辑使用。 appadmin.
      */
-    public function getTreeArr($rootCategoryId = '', $lang = '',$appserver=false,$level = 1)
+    public function getTreeArr($rootCategoryId = '', $lang = '', $appserver=false, $level = 1)
     {
         $arr = [];
         if (!$lang) {
@@ -259,14 +307,15 @@ class CategoryMongodb extends Service implements CategoryInterface
                     $idKey    => $idVal,
                     'level'   => $level,
                     'name'    => Yii::$service->fecshoplang->getLangAttrVal($cate['name'], 'name', $lang),
+                    'thumbnail_image' => $cate['thumbnail_image'],
                 ];
-                if($appserver){
+                if ($appserver) {
                     $arr[$idVal]['url'] = '/catalog/category/'.$idVal;
                 }
                 //echo $arr[$idVal]['name'];
 
                 if ($this->hasChildCategory($idVal)) {
-                    $arr[$idVal]['child'] = $this->getTreeArr($idVal, $lang,$appserver,$level+1);
+                    $arr[$idVal]['child'] = $this->getTreeArr($idVal, $lang, $appserver, $level+1);
                 }
             }
         }
@@ -285,7 +334,7 @@ class CategoryMongodb extends Service implements CategoryInterface
     }
 
     /**
-     * @property $parent_id|string
+     * @param $parent_id|string
      * 通过当前分类的parent_id字段（当前分类的上级分类id），得到所有的上级信息数组。
      * 里面包含的信息为：name，url_key。
      * 譬如一个分类为三级分类，将他的parent_id传递给这个函数，那么，他返回的数组信息为[一级分类的信息（name，url_key），二级分类的信息（name，url_key）].
@@ -340,8 +389,8 @@ class CategoryMongodb extends Service implements CategoryInterface
     }
 
     /**
-     * @property $category_id|string  当前的分类_id
-     * @property $parent_id|string  当前的分类上级id parent_id
+     * @param $category_id|string  当前的分类_id
+     * @param $parent_id|string  当前的分类上级id parent_id
      * 这个功能是点击分类后，在产品分类页面侧栏的子分类菜单导航，详细的逻辑如下：
      * 1.如果level为一级，那么title部分为当前的分类，子分类为一级分类下的二级分类
      * 2.如果level为二级，那么将所有的二级分类列出，当前的二级分类，会列出来当前二级分类对应的子分类
@@ -456,10 +505,10 @@ class CategoryMongodb extends Service implements CategoryInterface
     {
         //echo $category_id;
         $data = $this->_categoryModel->find()->asArray()->where([
-                        'parent_id' => $category_id,
-                        'status' => $this->getCategoryEnableStatus(),
-                        'menu_show'  => $this->getCategoryMenuShowStatus(),
-                    ])->all();
+            'parent_id' => $category_id,
+            'status' => $this->getCategoryEnableStatus(),
+            'menu_show'  => $this->getCategoryMenuShowStatus(),
+        ])->all();
         $arr = [];
         if (is_array($data) && !empty($data)) {
             foreach ($data as $one) {

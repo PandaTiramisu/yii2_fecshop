@@ -1,27 +1,25 @@
 <?php
 /**
- * FecShop file.
+ * FecMall file.
  *
- * @link http://www.fecshop.com/
- * @copyright Copyright (c) 2016 FecShop Software LLC
- * @license http://www.fecshop.com/license/
+ * @link http://www.fecmall.com/
+ * @copyright Copyright (c) 2016 FecMall Software LLC
+ * @license http://www.fecmall.com/license/
  */
 use fec\helpers\CUrl;
 use fec\helpers\CRequest;
 ?>
 <style>
-.login_bar {
-    padding-left: 80px;
-}
+
 </style>
 <form action="<?= CUrl::getUrl('fecadmin/login/index'); ?>" method="post">
-	<?php echo CRequest::getCsrfInputHtml();  ?>	
-	<p>
-		<label>用户名：</label>
+	<?php echo CRequest::getCsrfInputHtml();  ?>
+	<p class="lg">
+		<label><?= Yii::$service->page->translate->__('User'); ?> : </label>
 		<input type="text" name="login[username]" size="20" class="login_input" />
 	</p>
-	<p>
-		<label>密码：</label>
+	<p class="lg">
+		<label><?= Yii::$service->page->translate->__('Password'); ?> : </label>
 		<input type="password" name="login[password]" size="20" class="login_input" />
 	</p>
 	<!--
@@ -43,7 +41,7 @@ use fec\helpers\CRequest;
 		<span style="color:#cc0000"><?= $error; ?> </span>
 	</p>
 	<div class="login_bar">
-		<input class="sub" type="submit" value="" />
+		<input class="sub" type="submit" value="<?= Yii::$service->page->translate->__('Login'); ?>" />
 	</div>
 </form>
 

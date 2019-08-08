@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -9,7 +10,6 @@
 
 namespace fecshop\services\cart;
 
-//use fecshop\models\mysqldb\cart\Item as MyCartItem;
 use fecshop\services\Service;
 use Yii;
 
@@ -21,32 +21,43 @@ use Yii;
 class QuoteItem extends Service
 {
     public $itemDefaultActiveStatus = 1;
+
     public $activeStatus = 1;
+
     public $noActiveStatus = 2;
     
     protected $_my_cart_item;    // 购物车cart item 对象
+
     protected $_cart_product_info;
     
     protected $_itemModelName = '\fecshop\models\mysqldb\cart\Item';
+
+    /**
+     * @var \fecshop\models\mysqldb\cart\Item
+     */
     protected $_itemModel;
     
-    public function init(){
+    public function init()
+    {
         parent::init();
-        list($this->_itemModelName,$this->_itemModel) = Yii::mapGet($this->_itemModelName);  
+        list($this->_itemModelName, $this->_itemModel) = Yii::mapGet($this->_itemModelName);
     }
     
     /**
-     * @property $item | Array, example:
+     * 将某个产品加入到购物车中。
+     * 在添加到 cart_item 表后，更新购物车中产品的总数。
+     * @param array $item
+     * @param Object $product ， Product Model
+     * @return mixed
+     * example:
      * $item = [
      *		'product_id' 		=> 22222,
      *		'custom_option_sku' => red-xxl,
      *		'qty' 				=> 22,
      *      'sku' 				=> 'xxxx',
      * ];
-     * 将某个产品加入到购物车中。在添加到cart_item表后，更新
-     * 购物车中产品的总数。
      */
-    public function addItem($item)
+    public function addItem($item, $product)
     {
         $cart_id = Yii::$service->cart->quote->getCartId();
         if (!$cart_id) {
@@ -55,10 +66,12 @@ class QuoteItem extends Service
         }
         // 查看是否存在此产品，如果存在，则相加个数
         if (!isset($item['product_id']) || empty($item['product_id'])) {
-            Yii::$service->helper->errors->add('add to cart error,product id is empty');
+            Yii::$service->helper->errors->add('add to cart error, product id is empty');
 
             return false;
         }
+        
+        
         $where = [
             'cart_id'    => $cart_id,
             'product_id' => $item['product_id'],
@@ -66,34 +79,53 @@ class QuoteItem extends Service
         if (isset($item['custom_option_sku']) && !empty($item['custom_option_sku'])) {
             $where['custom_option_sku'] = $item['custom_option_sku'];
         }
+        /** @var \fecshop\models\mysqldb\cart\Item $item_one */
         $item_one = $this->_itemModel->find()->where($where)->one();
+        
         if ($item_one['cart_id']) {
-            $item_one->active       = $this->itemDefaultActiveStatus;
+            // 检查产品满足加入购物车的条件
+            
+            $checkItem = $item;
+            $checkItem['qty'] = $item['qty'] + $item_one['qty'];
+            $productValidate = Yii::$service->cart->info->checkProductBeforeAdd($checkItem, $product);
+            
+            if (!$productValidate) {
+                return false;
+            }
+            $item_one->active = $this->itemDefaultActiveStatus;
             $item_one->qty = $item['qty'] + $item_one['qty'];
             $item_one->save();
             // 重新计算购物车的数量
             Yii::$service->cart->quote->computeCartInfo();
         } else {
+            // 检查产品满足加入购物车的条件
+            $checkItem = $item;
+            $productValidate = Yii::$service->cart->info->checkProductBeforeAdd($checkItem, $product);
+            if (!$productValidate) {
+                return false;
+            }
             $item_one = new $this->_itemModelName;
-            $item_one->store        = Yii::$service->store->currentStore;
-            $item_one->cart_id      = $cart_id;
-            $item_one->created_at   = time();
-            $item_one->updated_at   = time();
-            $item_one->product_id   = $item['product_id'];
-            $item_one->qty          = $item['qty'];
-            $item_one->active       = $this->itemDefaultActiveStatus;
+            $item_one->store = Yii::$service->store->currentStore;
+            $item_one->cart_id = $cart_id;
+            $item_one->created_at = time();
+            $item_one->updated_at = time();
+            $item_one->product_id = $item['product_id'];
+            $item_one->qty = $item['qty'];
+            $item_one->active = $this->itemDefaultActiveStatus;
             $item_one->custom_option_sku = ($item['custom_option_sku'] ? $item['custom_option_sku'] : '');
             $item_one->save();
-            // 重新计算购物车的数量,并写入sales_flat_cart表存储
+            // 重新计算购物车的数量,并写入 sales_flat_cart 表存储
             Yii::$service->cart->quote->computeCartInfo();
         }
         
         $item['afterAddQty'] = $item_one->qty;
         $this->sendTraceAddToCartInfoByApi($item);
-        
+
+        return true;
     }
+
     /**
-     * @property $item | Array, example:
+     * @param $item | Array, example:
      * $item = [
      *		'product_id' 		=> 22222,
      *		'custom_option_sku' => red-xxl,
@@ -101,9 +133,10 @@ class QuoteItem extends Service
      *      'sku' 				=> 'xxxx',
      *      'afterAddQty'       => 33,  // 添加后，该产品在sku中的个数，这个个数是为了计算购物车中产品的价格
      * ];
-     * 将加入购物车的操作，加入trace 
+     * 将加入购物车的操作，加入trace
      */
-    public function sendTraceAddToCartInfoByApi($item){
+    public function sendTraceAddToCartInfoByApi($item)
+    {
         if (Yii::$service->page->trace->traceJsEnable) {
             $product_price_arr  = Yii::$service->product->price->getCartPriceByProductId($item['product_id'], $item['afterAddQty'], $item['custom_option_sku'], 2);
             $base_product_price = isset($product_price_arr['base_price']) ? $product_price_arr['base_price'] : 0;
@@ -120,7 +153,7 @@ class QuoteItem extends Service
     }
 
     /**
-     * @property $item | Array, example:
+     * @param $item | Array, example:
      * $item = [
      *		'product_id' 		=> 22222,
      *		'custom_option_sku' => red-xxl,
@@ -128,8 +161,9 @@ class QuoteItem extends Service
      * ];
      * @return boolean;
      *                  将购物车中的某个产品更改个数，更改后的个数就是上面qty的值。
+     * @deprecated 该函数已经被遗弃
      */
-    /** 该函数已经被遗弃
+    /*
     public function changeItemQty($item)
     {
         $cart_id = Yii::$service->cart->quote->getCartId();
@@ -160,7 +194,7 @@ class QuoteItem extends Service
      * 在购物车中产品有变动后，使用这个函数得到产品总数，更新购物车中
      * 的产品总数。
      */
-    public function getItemQty()
+    public function getItemAllQty()
     {
         $cart_id = Yii::$service->cart->quote->getCartId();
         $item_qty = 0;
@@ -170,7 +204,40 @@ class QuoteItem extends Service
             ])->all();
             if (is_array($data) && !empty($data)) {
                 foreach ($data as $one) {
-                    $item_qty += $one['qty'];
+                    $product_id = $one['product_id'];
+                    $productModel = Yii::$service->product->getByPrimaryKey($product_id);
+                    if ($productModel && isset($productModel['status']) && Yii::$service->product->isActive($productModel['status'])) {
+                        $item_qty += $one['qty'];
+                    }
+                }
+            }
+        }
+
+        return $item_qty;
+    }
+    
+    /**
+     * 通过quoteItem表，计算得到所有产品的总数
+     * 得到购物车中产品的总数，不要使用这个函数，这个函数的作用：
+     * 在购物车中产品有变动后，使用这个函数得到产品总数，更新购物车中
+     * 的产品总数。
+     */
+    public function getActiveItemQty()
+    {
+        $cart_id = Yii::$service->cart->quote->getCartId();
+        $item_qty = 0;
+        if ($cart_id) {
+            $data = $this->_itemModel->find()->asArray()->where([
+                'cart_id' => $cart_id,
+                'active' => $this->activeStatus,
+            ])->all();
+            if (is_array($data) && !empty($data)) {
+                foreach ($data as $one) {
+                    $product_id = $one['product_id'];
+                    $productModel = Yii::$service->product->getByPrimaryKey($product_id);
+                    if ($productModel && isset($productModel['status']) && Yii::$service->product->isActive($productModel['status'])) {
+                        $item_qty += $one['qty'];
+                    }
                 }
             }
         }
@@ -179,7 +246,7 @@ class QuoteItem extends Service
     }
 
     /**
-     * @property $activeProduct | boolean , 是否只要active的产品
+     * @param $activeProduct | boolean , 是否只要active的产品
      * @return array ， foramt：
      *               [
      *               'products' 		=> $products, 				# 产品详细信息，详情参看代码中的$products。
@@ -196,6 +263,10 @@ class QuoteItem extends Service
         $product_total  = 0;
         $product_weight = 0;
         $product_volume_weight = 0;
+        $base_product_total = 0;
+        $product_volume = 0;
+        $product_qty_total = 0;
+        $productPrimaryKey = Yii::$service->product->getPrimaryKey();
         if ($cart_id) {
             if (!isset($this->_cart_product_info[$cart_id])) {
                 $data = $this->_itemModel->find()->where([
@@ -209,7 +280,7 @@ class QuoteItem extends Service
                         }
                         $product_id     = $one['product_id'];
                         $product_one    = Yii::$service->product->getByPrimaryKey($product_id);
-                        if ($product_one['_id']) {
+                        if ($product_one[$productPrimaryKey]) {
                             $qty                = $one['qty'];
                             
                             $custom_option_sku  = $one['custom_option_sku'];
@@ -227,11 +298,12 @@ class QuoteItem extends Service
                             $p_vwt              = $product_one['volume_weight'] * $qty;
                             
                             if ($active == $this->activeStatus) {
-                                $product_total      += $product_row_price;
+                                $product_total          += $product_row_price;
                                 $base_product_total     += $base_product_row_price;
                                 $product_weight         += $p_wt;
                                 $product_volume_weight  += $p_vwt;
                                 $product_volume         += $p_pv;
+                                $product_qty_total      += $qty;
                             }
                             $productSpuOptions  = $this->getProductSpuOptions($product_one);
                             $products[] = [
@@ -263,12 +335,13 @@ class QuoteItem extends Service
                         }
                     }
                     $this->_cart_product_info[$cart_id] = [
-                        'products'          => $products,
-                        'product_total'     => $product_total,
-                        'base_product_total'=> $base_product_total,
-                        'product_weight'    => $product_weight,
-                        'product_volume_weight'    => $product_volume_weight,
-                        'product_volume'    => $product_volume,
+                        'products'              => $products,
+                        'product_qty_total'     => $product_qty_total,
+                        'product_total'         => $product_total,
+                        'base_product_total'    => $base_product_total,
+                        'product_weight'        => $product_weight,
+                        'product_volume_weight' => $product_volume_weight,
+                        'product_volume'        => $product_volume,
                         
                     ];
                 }
@@ -279,7 +352,7 @@ class QuoteItem extends Service
     }
 
     /**
-     * @property $productOb | Object，类型：\fecshop\models\mongodb\Product
+     * @param $productOb | Object，类型：\fecshop\models\mongodb\Product
      * 得到产品的spu对应的属性以及值。
      * 概念 - spu options：当多个产品是同一个spu，但是不同的sku的时候，他们的产品表里面的
      * spu attr 的值是不同的，譬如对应鞋子，size 和 color 就是spu attr，对于同一款鞋子，他们
@@ -288,25 +361,44 @@ class QuoteItem extends Service
     protected function getProductSpuOptions($productOb)
     {
         $custom_option_info_arr = [];
+        $productPrimaryKey = Yii::$service->product->getPrimaryKey();
+        $productAttrGroup = $productOb['attr_group'];
         if (isset($productOb['attr_group']) && !empty($productOb['attr_group'])) {
-            $productAttrGroup = $productOb['attr_group'];
-            Yii::$service->product->addGroupAttrs($productAttrGroup);
-            $productOb  = Yii::$service->product->getByPrimaryKey((string) $productOb['_id']);
             $spuArr     = Yii::$service->product->getSpuAttr($productAttrGroup);
-            if (is_array($spuArr) && !empty($spuArr)) {
-                foreach ($spuArr as $spu_attr) {
-                    if (isset($productOb[$spu_attr]) && !empty($productOb[$spu_attr])) {
-                        $custom_option_info_arr[$spu_attr] = $productOb[$spu_attr];
+            //var_dump($productOb['attr_group_info']);
+            // mysql存储
+            if (isset($productOb['attr_group_info']) && is_array($productOb['attr_group_info'])) {
+                $attr_group_info = $productOb['attr_group_info'];
+                if (is_array($spuArr) && !empty($spuArr)) {
+                    foreach ($spuArr as $spu_attr) {
+                        if (isset($attr_group_info[$spu_attr]) && !empty($attr_group_info[$spu_attr])) {
+                            // 进行翻译。
+                            $spu_attr_label = Yii::$service->page->translate->__($spu_attr);
+                            $spu_attr_val = Yii::$service->page->translate->__($attr_group_info[$spu_attr]);
+                            $custom_option_info_arr[$spu_attr_label] = $spu_attr_val;
+                        }
+                    }
+                }
+            } else { // mongodb类型
+                Yii::$service->product->addGroupAttrs($productAttrGroup);
+                $productOb  = Yii::$service->product->getByPrimaryKey((string) $productOb[$productPrimaryKey ]);
+                if (is_array($spuArr) && !empty($spuArr)) {
+                    foreach ($spuArr as $spu_attr) {
+                        if (isset($productOb[$spu_attr]) && !empty($productOb[$spu_attr])) {
+                            // 进行翻译。
+                            $spu_attr_label = Yii::$service->page->translate->__($spu_attr);
+                            $spu_attr_val = Yii::$service->page->translate->__($productOb[$spu_attr]);
+                            $custom_option_info_arr[$spu_attr_label] = $spu_attr_val;
+                        }
                     }
                 }
             }
         }
-
         return $custom_option_info_arr;
     }
 
     /**
-     * @property $item_id | Int ， quoteItem表的id
+     * @param $item_id | Int ， quoteItem表的id
      * @return bool
      *              将这个item_id对应的产品个数+1.
      */
@@ -321,6 +413,14 @@ class QuoteItem extends Service
             $product_id = $one['product_id'];
             if ($one['item_id'] && $product_id) {
                 $product = Yii::$service->product->getByPrimaryKey($product_id);
+                // 检查产品满足加入购物车的条件
+                $checkItem = $one;
+                $checkItem['qty'] += 1;
+                $productValidate = Yii::$service->cart->info->checkProductBeforeAdd($checkItem, $product);
+            
+                if (!$productValidate) {
+                    return false;
+                }
                 $changeQty = Yii::$service->cart->getCartQty($product['package_number'], 1);
                 $one['qty'] = $one['qty'] + $changeQty;
                 $one->save();
@@ -343,7 +443,7 @@ class QuoteItem extends Service
     }
 
     /**
-     * @property $item_id | Int ， quoteItem表的id
+     * @param $item_id | Int ， quoteItem表的id
      * @return bool
      *              将这个item_id对应的产品个数-1.
      */
@@ -363,8 +463,8 @@ class QuoteItem extends Service
             if ($product['min_sales_qty'] && $product['min_sales_qty'] >= 2) {
                 $min_sales_qty = $product['min_sales_qty'];
             }
-            if($lessedQty < $min_sales_qty){
-                Yii::$service->helper->errors->add('product less buy qty is '.$product['min_sales_qty']);
+            if ($lessedQty < $min_sales_qty) {
+                Yii::$service->helper->errors->add('product less buy qty is {min_sales_qty}', ['min_sales_qty' => $product['min_sales_qty']]);
                 
                 return false;
             }
@@ -385,7 +485,7 @@ class QuoteItem extends Service
     }
 
     /**
-     * @property $item_id | Int ， quoteItem表的id
+     * @param $item_id | Int ， quoteItem表的id
      * @return bool
      *              将这个item_id对应的产品删除
      */
@@ -410,7 +510,7 @@ class QuoteItem extends Service
     }
     
     /**
-     * @property $item_id | Int ， quoteItem表的id
+     * @param $item_id | Int ， quoteItem表的id
      * @return bool
      *              将这个item_id对应的产品个数+1.
      */
@@ -444,7 +544,7 @@ class QuoteItem extends Service
     }
     
     /**
-     * @property $item_id | Int ， quoteItem表的id
+     * @param $item_id | Int ， quoteItem表的id
      * @return bool
      *              将这个item_id对应的产品个数+1.
      */
@@ -459,7 +559,7 @@ class QuoteItem extends Service
             $updateCount = $this->_itemModel->updateAll(
                 ['active'  => $active],
                 ['cart_id' => $cart_id]
-            ); 
+            );
             if ($updateCount > 0) {
                 Yii::$service->cart->quote->computeCartInfo();
             }
@@ -470,9 +570,8 @@ class QuoteItem extends Service
         return false;
     }
     
-    
-    /** 
-     * @property $cart_id | int 购物车id
+    /**
+     * @param $cart_id | int 购物车id
      * 删除购物车中的所有的active产品。对于noActive产品保留
      * 注意：清空购物车并不是清空所有信息，仅仅是清空用户购物车中的产品。
      * 另外，购物车的数目更改后，需要更新cart中产品个数的信息。
@@ -494,11 +593,10 @@ class QuoteItem extends Service
                 return true;
             }
         }
-        
     }
 
     /** 废弃，改为 removeNoActiveItemsByCartId()，因为购物车改为勾选下单方式。
-     * @property $cart_id | int 购物车id
+     * @param $cart_id | int 购物车id
      * 删除购物车中的所有产品。
      * 注意：清空购物车并不是清空所有信息，仅仅是清空用户购物车中的产品。
      * 另外，购物车的数目更改后，需要更新cart中产品个数的信息。
@@ -521,8 +619,8 @@ class QuoteItem extends Service
     }
 
     /**
-     * @property $new_cart_id | int 更新后的cart_id
-     * @property $cart_id | int 更新前的cart_id
+     * @param $new_cart_id | int 更新后的cart_id
+     * @param $cart_id | int 更新前的cart_id
      * 删除购物车中的所有产品。
      * 这里仅仅更改cart表的cart_id， 而不会做其他任何事情。
      */

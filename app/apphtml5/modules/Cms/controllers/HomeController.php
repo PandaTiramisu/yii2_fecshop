@@ -27,7 +27,7 @@ class HomeController extends AppfrontController
         $cacheName = 'home';
         if (Yii::$service->cache->isEnable($cacheName)) {
             $timeout = Yii::$service->cache->timeout($cacheName);
-            $disableUrlParam = Yii::$service->cache->timeout($cacheName);
+            $disableUrlParam = Yii::$service->cache->disableUrlParam($cacheName);
             $get = Yii::$app->request->get();
             // 存在无缓存参数，则关闭缓存
             if (isset($get[$disableUrlParam])) {
@@ -37,6 +37,8 @@ class HomeController extends AppfrontController
                     'only' => ['index'],
 
                 ];
+                
+                return $behaviors;
             }
             $store = Yii::$service->store->currentStore;
             $currency = Yii::$service->page->currency->getCurrentCurrency();

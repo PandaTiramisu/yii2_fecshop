@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -25,52 +26,86 @@ class Paypal extends Service
      * 打开url后，浏览器查找：PAYMENTINFO_n_PAYMENTSTATUS  ， 即可找到下面各个状态对应的含义
      */
     public $payment_status_none         = 'none';
+
     public $payment_status_completed    = 'completed';
+
     public $payment_status_denied       = 'denied';
+
     public $payment_status_expired      = 'expired';
+
     public $payment_status_failed       = 'failed';
+
     public $payment_status_in_progress  = 'in_progress';
+
     public $payment_status_pending      = 'pending';
+
     public $payment_status_refunded     = 'refunded';
+
     public $payment_status_refunded_part= 'partially_refunded';
+
     public $payment_status_reversed     = 'reversed';
+
     public $payment_status_unreversed   = 'canceled_reversal';
+
     public $payment_status_processed    = 'processed';
+
     public $payment_status_voided       = 'voided';
+
     public $seller_email ;
 
     // 是否使用证书的方式（https）
     public $use_local_certs = false;
+
     // 在payment中 express paypal 的配置值
     public $express_payment_method;
+
     public $standard_payment_method;
+
     public $version = '109.0';
+
     public $crt_file;
 
     protected $_postData;
+
     protected $_order;
 
     const EXPRESS_TOKEN     = 'paypal_express_token';
+
     const EXPRESS_PAYER_ID  = 'paypal_express_payer_id';
     
     protected $payerID;
+
     protected $token;
+
     // 允许更改的订单状态，不存在这里面的订单状态不允许修改
     protected $_allowChangOrderStatus;
     
     protected $_ipnMessageModelName = '\fecshop\models\mysqldb\IpnMessage';
+
     protected $_ipnMessageModel;
     
-    public function init(){
+    protected $_account;
+    protected $_password;
+    protected $_signature;
+    protected $_env;
+    
+    public function init()
+    {
         parent::init();
-        list($this->_ipnMessageModelName,$this->_ipnMessageModel) = \Yii::mapGet($this->_ipnMessageModelName);  
+        $this->_account = Yii::$app->store->get('payment_paypal', 'paypal_account');
+        $this->_password = Yii::$app->store->get('payment_paypal', 'paypal_password');
+        $this->_signature = Yii::$app->store->get('payment_paypal', 'paypal_signature');
+        $this->_env = Yii::$app->store->get('payment_paypal', 'paypal_env');
+        
+        list($this->_ipnMessageModelName, $this->_ipnMessageModel) = \Yii::mapGet($this->_ipnMessageModelName);
         $this->_allowChangOrderStatus = [
             Yii::$service->order->payment_status_pending,
             Yii::$service->order->payment_status_processing,
         ];
     }
+
     /**
-     * @property $domain | string
+     * @param $domain | string
      * @return 得到证书crt文件的绝对路径
      */
     public function getCrtFile($domain)
@@ -87,22 +122,22 @@ class Paypal extends Service
      */
     public function receiveIpn($post)
     {
-         \Yii::info('receiveIpn', 'fecshop_debug');
+        \Yii::info('receiveIpn', 'fecshop_debug');
         if ($this->verifySecurity($post)) {
             \Yii::info('verifySecurity', 'fecshop_debug');
             // 验证数据是否已经发送
             //if ($this->isNotDuplicate()) {
-                // 验证数据是否被篡改。
-                if ($this->isNotDistort()) {
-                    \Yii::info('updateOrderStatusByIpn', 'fecshop_debug');
-                    $this->updateOrderStatusByIpn();
-                } else {
-                    // 如果数据和订单数据不一致，而且，支付状态为成功，则此订单
-                    // 标记为可疑的。
-                    $suspected_fraud = Yii::$service->order->payment_status_suspected_fraud;
-                    $this->updateOrderStatusByIpn($suspected_fraud);
-                }
-           // }
+            // 验证数据是否被篡改。
+            if ($this->isNotDistort()) {
+                \Yii::info('updateOrderStatusByIpn', 'fecshop_debug');
+                $this->updateOrderStatusByIpn();
+            } else {
+                // 如果数据和订单数据不一致，而且，支付状态为成功，则此订单
+                // 标记为可疑的。
+                $suspected_fraud = Yii::$service->order->payment_status_suspected_fraud;
+                $this->updateOrderStatusByIpn($suspected_fraud);
+            }
+            // }
         }
     }
 
@@ -139,10 +174,15 @@ class Paypal extends Service
         $urlParamStr   .= '&cmd=_notify-validate';
         $urlParamStr    = substr($urlParamStr, 1);
         $current_payment_method = Yii::$service->payment->getPaymentMethod();
-        if ($current_payment_method == $this->standard_payment_method) {
-            $verifyUrl = Yii::$service->payment->getStandardWebscrUrl($this->standard_payment_method);
+        //if ($current_payment_method == $this->standard_payment_method) {
+        //    $verifyUrl = Yii::$service->payment->getStandardWebscrUrl($this->standard_payment_method);
+        //} else {
+        //    $verifyUrl = Yii::$service->payment->getExpressWebscrUrl($this->express_payment_method);
+        //}
+        if ($this->_env == Yii::$service->payment->env_sanbox) {
+            $verifyUrl = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
         } else {
-            $verifyUrl = Yii::$service->payment->getExpressWebscrUrl($this->express_payment_method);
+            $verifyUrl = 'https://www.paypal.com/cgi-bin/webscr';
         }
         $verifyUrl      = $verifyUrl.'?'.$urlParamStr;
 
@@ -150,8 +190,8 @@ class Paypal extends Service
     }
     
     /**
-     * @property $url | string, 请求的url
-     * @property $i | 请求的次数，因为curl可能存在失败的可能，当
+     * @param $url | string, 请求的url
+     * @param $i | 请求的次数，因为curl可能存在失败的可能，当
      * 失败后，就会通过递归的方式进行多次请求，这里设置的最大请求5次。
      * @return 返回请求url的return信息。
      */
@@ -237,7 +277,9 @@ class Paypal extends Service
                 if ($order_currency_code == $mc_currency) {
                     // 核对订单总额
                     $currentCurrencyGrandTotal = $this->_order['grand_total'];
-                    if ((float) $currentCurrencyGrandTotal == (float) $mc_gross) {
+                    // if (round($currentCurrencyGrandTotal, 2) == round($mc_gross, 2)) {
+                    // 因为float精度问题，使用高精度函数进行比较，精度到2位小数
+                    if(bccomp($currentCurrencyGrandTotal, $mc_gross, 2) == 0){
                         return true;
                     } else {
                     }
@@ -250,7 +292,7 @@ class Paypal extends Service
     }
 
     /**
-     * @property $orderstatus | String 订单状态
+     * @param $orderstatus | String 订单状态
      * 根据接收的ipn消息，更改订单状态。
      */
     protected function updateOrderStatusByIpn($orderstatus = '')
@@ -303,11 +345,11 @@ class Paypal extends Service
         // 在service中不要出现事务代码，如果添加事务，请在调用层使用。
         //$innerTransaction = Yii::$app->db->beginTransaction();
         //try {
-            // 可以更改的订单状态
+        // 可以更改的订单状态
             
-            if ($orderstatus) {
-                $updateArr['order_status'] = $orderstatus;
-                $this->_order->updateAll(
+        if ($orderstatus) {
+            $updateArr['order_status'] = $orderstatus;
+            $this->_order->updateAll(
                     $updateArr,
                     [
                         'and',
@@ -315,19 +357,19 @@ class Paypal extends Service
                         ['in','order_status',$this->_allowChangOrderStatus]
                     ]
                 );
-                // 指定了订单状态
+        // 指定了订单状态
                 // $this->_order->order_status = $orderstatus;
                 // $this->_order->save();
                 // $payment_status = strtolower($this->_postData['payment_status']);
                 // Yii::$app->mylog->log('save_'.$orderstatus);
-            } else {
-                $payment_status = strtolower($this->_postData['payment_status']);
-                if ($payment_status == $this->payment_status_completed) {
-                    // paypal支付完成，将订单状态改成：收款已确认。
-                    // 只有存在于 $this->_allowChangOrderStatus 数组的状态，才允许更改，按照目前的设置，取消了的订单是不允许更改的
-                    $orderstatus = Yii::$service->order->payment_status_confirmed;
-                    $updateArr['order_status'] = $orderstatus;
-                    $updateColumn = $this->_order->updateAll(
+        } else {
+            $payment_status = strtolower($this->_postData['payment_status']);
+            if ($payment_status == $this->payment_status_completed) {
+                // paypal支付完成，将订单状态改成：收款已确认。
+                // 只有存在于 $this->_allowChangOrderStatus 数组的状态，才允许更改，按照目前的设置，取消了的订单是不允许更改的
+                $orderstatus = Yii::$service->order->payment_status_confirmed;
+                $updateArr['order_status'] = $orderstatus;
+                $updateColumn = $this->_order->updateAll(
                         $updateArr,
                         [
                             'and',
@@ -335,23 +377,23 @@ class Paypal extends Service
                             ['in','order_status',$this->_allowChangOrderStatus]
                         ]
                     );
-                    //$this->_order->order_status = Yii::$service->order->payment_status_processing;
-                    // 更新订单信息
-                    //$this->_order->save();
-                    // 因为IPN消息可能不止发送一次，但是这里只允许一次，
-                    // 如果重复发送，$updateColumn 的更新返回值将为0
-                    if (!empty($updateColumn)) {
-                        Yii::$service->order->orderPaymentCompleteEvent($this->_order['increment_id']);
-                        // 上面的函数已经执行下面的代码，因此注释掉。
+                //$this->_order->order_status = Yii::$service->order->payment_status_processing;
+                // 更新订单信息
+                //$this->_order->save();
+                // 因为IPN消息可能不止发送一次，但是这里只允许一次，
+                // 如果重复发送，$updateColumn 的更新返回值将为0
+                if (!empty($updateColumn)) {
+                    Yii::$service->order->orderPaymentCompleteEvent($this->_order['increment_id']);
+                    // 上面的函数已经执行下面的代码，因此注释掉。
                         // $orderInfo = Yii::$service->order->getOrderInfoByIncrementId($this->_order['increment_id']);
                         // 发送新订单邮件
                         // Yii::$service->email->order->sendCreateEmail($orderInfo);
-                    }
-                } elseif ($payment_status == $this->payment_status_pending) {    
-                    // pending 代表信用卡预付方式，需要等待paypal从信用卡中把钱扣除，因此订单状态是processing
-                    $orderstatus = Yii::$service->order->payment_status_processing;
-                    $updateArr['order_status'] = $orderstatus;
-                    $updateColumn = $this->_order->updateAll(
+                }
+            } elseif ($payment_status == $this->payment_status_pending) {
+                // pending 代表信用卡预付方式，需要等待paypal从信用卡中把钱扣除，因此订单状态是processing
+                $orderstatus = Yii::$service->order->payment_status_processing;
+                $updateArr['order_status'] = $orderstatus;
+                $updateColumn = $this->_order->updateAll(
                         $updateArr,
                         [
                             'and',
@@ -359,18 +401,17 @@ class Paypal extends Service
                             ['order_status' => Yii::$service->order->payment_status_pending]
                         ]
                     );
-                    
-                } elseif ($payment_status == $this->payment_status_failed) {
-                    // 暂不处理
-                } elseif ($payment_status == $this->payment_status_refunded) {
-                    // 暂不处理
-                } else {
-                    // 暂不处理
-                }
+            } elseif ($payment_status == $this->payment_status_failed) {
+                // 暂不处理
+            } elseif ($payment_status == $this->payment_status_refunded) {
+                // 暂不处理
+            } else {
+                // 暂不处理
             }
-            //$innerTransaction->commit();
-            return true;
-        //} catch (Exception $e) {
+        }
+        //$innerTransaction->commit();
+        return true;
+        //} catch (\Exception $e) {
         //	$innerTransaction->rollBack();
         //}
         //return false;
@@ -379,54 +420,63 @@ class Paypal extends Service
     // express 部分
 
     /**
-     * @property $token | String , 通过 下面的 PPHttpPost5 方法返回的paypal express的token
+     * @param $token | String , 通过 下面的 PPHttpPost5 方法返回的paypal express的token
      * @return String，通过token得到跳转的 paypal url，通过这个url跳转到paypal登录页面，进行支付的开始
      */
     public function getExpressCheckoutUrl($token)
     {
         if ($token) {
-            $webscrUrl = Yii::$service->payment->getExpressWebscrUrl($this->express_payment_method);
-
+            //$webscrUrl = Yii::$service->payment->getExpressWebscrUrl($this->express_payment_method);
+            if ($this->_env == Yii::$service->payment->env_sanbox) {
+                $webscrUrl = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
+            } else {
+                $webscrUrl = 'https://www.paypal.com/cgi-bin/webscr';
+            }
             return $webscrUrl.'?cmd=_express-checkout&token='.urlencode($token);
         }
     }
     
-    
     /**
-     * @property $token | String , 通过 下面的 PPHttpPost5 方法返回的paypal standard的token
+     * @param $token | String , 通过 下面的 PPHttpPost5 方法返回的paypal standard的token
      * @return String，通过token得到跳转的 paypal url，通过这个url跳转到paypal登录页面，进行支付的开始
      */
     public function getStandardCheckoutUrl($token)
     {
         if ($token) {
-            $webscrUrl = Yii::$service->payment->getStandardWebscrUrl($this->standard_payment_method);
-
+            // $webscrUrl = Yii::$service->payment->getStandardWebscrUrl($this->standard_payment_method);
+            if ($this->_env == Yii::$service->payment->env_sanbox) {
+                $webscrUrl = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
+            } else {
+                $webscrUrl = 'https://www.paypal.com/cgi-bin/webscr';
+            }
             return $webscrUrl.'?useraction=commit&cmd=_express-checkout&token='.urlencode($token);
         }
     }
 
-
     /**
-     * @property $methodName_ | String，请求的方法，譬如： $methodName_ = "SetExpressCheckout";
-     * @property $nvpStr_ | String ，请求传递的购物车中的产品和总额部分的数据，组合成字符串的格式。
-     * @property $i | Int ， 限制递归次数的变量，当api获取失败的时候，可以通过递归的方式多次尝试，直至超过最大失败次数，才会返回失败
+     * @param $methodName_ | String，请求的方法，譬如： $methodName_ = "SetExpressCheckout";
+     * @param $nvpStr_ | String ，请求传递的购物车中的产品和总额部分的数据，组合成字符串的格式。
+     * @param $i | Int ， 限制递归次数的变量，当api获取失败的时候，可以通过递归的方式多次尝试，直至超过最大失败次数，才会返回失败
      * 此方法为获取token。返回的数据为数组，里面含有 ACK  TOKEN 等值。
      * 也就是和paypal进行初次的api账号密码验证，成功后返回token等信息。
      */
     public function PPHttpPost5($methodName_, $nvpStr_, $i = 1)
     {
         $current_payment_method = Yii::$service->payment->getPaymentMethod();
+        $API_NvpUrl     = Yii::$service->payment->getStandardNvpUrl($this->standard_payment_method);
+        $API_Signature  = $this->_signature;
+        $API_UserName   = $this->_account;
+        $API_Password   = $this->_password;
+        if ($this->_env == Yii::$service->payment->env_sanbox) {
+            $API_NvpUrl = 'https://api-3t.sandbox.paypal.com/nvp';
+        } else {
+            $API_NvpUrl = 'https://api-3t.paypal.com/nvp';
+        }
+        
+        
         if ($current_payment_method == $this->standard_payment_method) {
-            $API_NvpUrl     = Yii::$service->payment->getStandardNvpUrl($this->standard_payment_method);
-            $API_Signature  = Yii::$service->payment->getStandardSignature($this->standard_payment_method);
-            $API_UserName   = Yii::$service->payment->getStandardAccount($this->standard_payment_method);
-            $API_Password   = Yii::$service->payment->getStandardPassword($this->standard_payment_method);
             $ipn_url        = Yii::$service->payment->getStandardIpnUrl($this->standard_payment_method);
         } else {
-            $API_NvpUrl = Yii::$service->payment->getExpressNvpUrl($this->express_payment_method);
-            $API_Signature  = Yii::$service->payment->getExpressSignature($this->express_payment_method);
-            $API_UserName   = Yii::$service->payment->getExpressAccount($this->express_payment_method);
-            $API_Password   = Yii::$service->payment->getExpressPassword($this->express_payment_method);
             $ipn_url        = Yii::$service->payment->getExpressIpnUrl($this->express_payment_method);
         }
         // Set the API operation, version, and API signature in the request.
@@ -497,7 +547,7 @@ class Paypal extends Service
     }
 
     /**
-     * @property $nvp_array | Array, 各个配置参数
+     * @param $nvp_array | Array, 各个配置参数
      * 将数组里面的key和value，组合成url的字符串，生成nvp url
      */
     public function getRequestUrlStrByArray($nvp_array)
@@ -549,7 +599,7 @@ class Paypal extends Service
         $nvp_array['PAYMENTREQUEST_0_AMT']                  = $grand_total;
         $nvp_array['PAYMENTREQUEST_0_ITEMAMT']              = $subtotal;
         $nvp_array['PAYMENTREQUEST_0_SHIPPINGAMT']          = $shipping_total;
-        if($this->seller_email){
+        if ($this->seller_email) {
             $nvp_array['PAYMENTREQUEST_0_SELLERPAYPALACCOUNTID']  = $this->seller_email;
         }
         $i = 0;
@@ -584,13 +634,13 @@ class Paypal extends Service
     }
 
     /**
-     * @property $landingPage | String ，访问api的类型，譬如login
+     * @param $landingPage | String ，访问api的类型，譬如login
      * 【paypal快捷支付部分】通过购物车中的数据，组合成访问paypal express api的url
      * 这里返回的的字符串，是快捷支付部分获取token和payerId的参数。
      * 将返回的参数，传递给Yii::$service->payment->paypal->PPHttpPost5($methodName_, $nvpStr_)
      * 最终得到paypal express的token和payerId
      */
-    public function getExpressTokenNvpStr($landingPage = 'Login',$return_url='',$cancel_url='')
+    public function getExpressTokenNvpStr($landingPage = 'Login', $return_url='', $cancel_url='')
     {
         $nvp_array = [];
         $nvp_array['LANDINGPAGE'] = $landingPage;
@@ -600,7 +650,6 @@ class Paypal extends Service
             $nvp_array['RETURNURL'] = $return_url;
         } else {
             $nvp_array['RETURNURL'] = Yii::$service->payment->getExpressReturnUrl($this->express_payment_method);
-        
         }
         if ($cancel_url) {
             $nvp_array['CANCELURL'] = $cancel_url;
@@ -623,7 +672,7 @@ class Paypal extends Service
         $nvp_array['PAYMENTREQUEST_0_AMT'] = $grand_total;
         $nvp_array['PAYMENTREQUEST_0_ITEMAMT'] = $subtotal;
         $nvp_array['PAYMENTREQUEST_0_SHIPPINGAMT'] = $shipping_total;
-        if($this->seller_email){
+        if ($this->seller_email) {
             $nvp_array['PAYMENTREQUEST_0_SELLERPAYPALACCOUNTID']  = $this->seller_email;
         }
         $i = 0;
@@ -642,15 +691,14 @@ class Paypal extends Service
         return $this->getRequestUrlStrByArray($nvp_array);
     }
     
-    
     /**
-     * @property $landingPage | String ，访问api的类型，譬如login
+     * @param $landingPage | String ，访问api的类型，譬如login
      * 【paypal标准支付部分】通过订单中的数据，组合成访问paypal api的url
      * 这里返回的的字符串，是标准支付部分获取token和payerId的参数。
      *  通过 $checkoutReturn = Yii::$service->payment->paypal->PPHttpPost5($methodName_, $nvpStr_);
      *  获取token和payerId的参数。（$nvpStr_ 就是本函数的返回值）
      */
-    public function getStandardTokenNvpStr($landingPage = 'Login',$return_url='',$cancel_url='')
+    public function getStandardTokenNvpStr($landingPage = 'Login', $return_url='', $cancel_url='')
     {
         $nvp_array = [];
         $nvp_array['LANDINGPAGE'] = $landingPage;
@@ -681,7 +729,7 @@ class Paypal extends Service
         $nvp_array['PAYMENTREQUEST_0_AMT']          = $grand_total;
         $nvp_array['PAYMENTREQUEST_0_ITEMAMT']      = $subtotal;
         $nvp_array['PAYMENTREQUEST_0_SHIPPINGAMT']  = $shipping_total;
-        if($this->seller_email){
+        if ($this->seller_email) {
             $nvp_array['PAYMENTREQUEST_0_SELLERPAYPALACCOUNTID']  = $this->seller_email;
         }
         $i = 0;
@@ -690,7 +738,8 @@ class Paypal extends Service
             $nvp_array['L_PAYMENTREQUEST_0_QTY'.$i] = $item['qty'];
             $nvp_array['L_PAYMENTREQUEST_0_NUMBER'.$i] = $item['sku'];
             $nvp_array['L_PAYMENTREQUEST_0_AMT'.$i] = Yii::$service->helper->format->number_format($item['price']);
-            $nvp_array['L_PAYMENTREQUEST_0_NAME'.$i] = $item['name'];;
+            $nvp_array['L_PAYMENTREQUEST_0_NAME'.$i] = $item['name'];
+            ;
             $nvp_array['L_PAYMENTREQUEST_0_CURRENCYCODE'.$i] = $currency;
             $i++;
         }
@@ -698,7 +747,7 @@ class Paypal extends Service
         $nvp_array['L_PAYMENTREQUEST_0_AMT'.$i] = '-'.$discount_amount;
         
         //var_dump($nvp_array);
-	//exit;
+        //exit;
         return $this->getRequestUrlStrByArray($nvp_array);
     }
 
@@ -707,9 +756,9 @@ class Paypal extends Service
      */
     public function getToken()
     {
-        if(!$this->token){
+        if (!$this->token) {
             $token = Yii::$app->request->get('token');
-            if(!$token){
+            if (!$token) {
                 $token = Yii::$app->request->post('token');
             }
             $token = \Yii::$service->helper->htmlEncode($token);
@@ -725,9 +774,9 @@ class Paypal extends Service
      */
     public function getPayerID()
     {
-        if(!$this->payerID){
+        if (!$this->payerID) {
             $payerID = Yii::$app->request->get('PayerID');
-            if(!$payerID){
+            if (!$payerID) {
                 $payerID = Yii::$app->request->post('PayerID');
             }
             $payerID = \Yii::$service->helper->htmlEncode($payerID);
@@ -739,10 +788,10 @@ class Paypal extends Service
     }
 
     /**
-     * @property $doCheckoutReturn | Array ， 
+     * @param $doCheckoutReturn | Array ，
      * paypal付款状态提交后，更新订单的支付部分的信息。
      */
-    public function updateOrderPayment($doCheckoutReturn,$token)
+    public function updateOrderPayment($doCheckoutReturn, $token)
     {
         if ($doCheckoutReturn) {
             $order = Yii::$service->order->getByPaymentToken($token);
@@ -773,15 +822,15 @@ class Paypal extends Service
                 $updateArr['payment_type'] = $doCheckoutReturn['PAYMENTINFO_0_PAYMENTTYPE'];
                 $updateArr['paypal_order_datetime'] = date('Y-m-d H:i:s', $doCheckoutReturn['PAYMENTINFO_0_ORDERTIME']);
                 $PAYMENTINFO_0_PAYMENTSTATUS = $doCheckoutReturn['PAYMENTINFO_0_PAYMENTSTATUS'];
-                $updateArr['updated_at'] = time(); 
+                $updateArr['updated_at'] = time();
                 if (
                     strtolower($PAYMENTINFO_0_PAYMENTSTATUS) == $this->payment_status_completed
-                    || 
+                    ||
                     strtolower($PAYMENTINFO_0_PAYMENTSTATUS) == $this->payment_status_processed
                 ) {
                     $order_status = Yii::$service->order->payment_status_confirmed;
                     if ($currency == $order['order_currency_code'] && $PAYMENTINFO_0_AMT == $order['grand_total']) {
-                        $updateArr['order_status'] = $order_status;          
+                        $updateArr['order_status'] = $order_status;
                         $updateColumn = $order->updateAll(
                             $updateArr,
                             [
@@ -804,7 +853,7 @@ class Paypal extends Service
                         // 金额不一致，判定为欺诈
                         Yii::$service->helper->errors->add('The amount of payment is inconsistent with the amount of the order');
                         $order_status = Yii::$service->order->payment_status_suspected_fraud;
-                        $updateArr['order_status'] = $order_status;  
+                        $updateArr['order_status'] = $order_status;
                         $updateColumn = $order->updateAll(
                             $updateArr,
                             [
@@ -814,12 +863,11 @@ class Paypal extends Service
                             ]
                         );
                     }
-                    
-                } else if (strtolower($PAYMENTINFO_0_PAYMENTSTATUS) == $this->payment_status_pending) {   
+                } elseif (strtolower($PAYMENTINFO_0_PAYMENTSTATUS) == $this->payment_status_pending) {
                     // 这种情况代表paypal 信用卡预售，需要等待一段时间才知道是否收到钱
                     $order_status = Yii::$service->order->payment_status_processing;
                     if ($currency == $order['order_currency_code'] && $PAYMENTINFO_0_AMT == $order['grand_total']) {
-                        $updateArr['order_status'] = $order_status;   
+                        $updateArr['order_status'] = $order_status;
                         $updateColumn = $order->updateAll(
                             $updateArr,
                             [
@@ -835,7 +883,7 @@ class Paypal extends Service
                         // 金额不一致，判定为欺诈
                         Yii::$service->helper->errors->add('The amount of payment is inconsistent with the amount of the order');
                         $order_status = Yii::$service->order->payment_status_suspected_fraud;
-                        $updateArr['order_status'] = $order_status;   
+                        $updateArr['order_status'] = $order_status;
                         $updateColumn = $order->updateAll(
                             $updateArr,
                             [
@@ -846,7 +894,7 @@ class Paypal extends Service
                         );
                     }
                 } else {
-                    Yii::$service->helper->errors->add('paypal payment is not complete , current payment status is '.$PAYMENTINFO_0_PAYMENTSTATUS);
+                    Yii::$service->helper->errors->add('paypal payment is not complete , current payment status is {payment_status}', ['payment_status' => $PAYMENTINFO_0_PAYMENTSTATUS]);
                 }
             } else {
                 Yii::$service->helper->errors->add('current order is not exist');

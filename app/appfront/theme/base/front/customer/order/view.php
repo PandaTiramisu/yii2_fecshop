@@ -11,6 +11,7 @@
 use fecshop\app\appfront\helper\Format;
 ?>
 <div class="main container two-columns-left">
+    <?= Yii::$service->page->widget->render('breadcrumbs',$this); ?>
 	<div class="col-main account_center">
 		<div class="std">
 			<div style="margin:19px 0 0">
@@ -29,7 +30,11 @@ use fecshop\app\appfront\helper\Format;
                                     <address><?=  $customer_firstname ?> <?=  $customer_lastname ?><br>
                                     <?=  $customer_address_street1 ?><br><?=  $customer_address_street2 ?><br><?=  $customer_address_city ?>,<?=  $customer_address_state_name ?>,<?=  $customer_address_country_name ?><br>
                                     <?= Yii::$service->page->translate->__('T:');?><?=  $customer_telephone ?>
-
+                                    <br>
+                                    <?= Yii::$service->page->translate->__('Tracking Number');?>: 
+                                        <span style="color:#777;">
+                                            <?=  $tracking_number ? $tracking_number : Yii::$service->page->translate->__('null') ?>
+                                        </span>
                                     </address>
                                 </div>
                             </div>				

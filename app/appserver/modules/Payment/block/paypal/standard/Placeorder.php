@@ -38,9 +38,9 @@ class Placeorder
         if(!$token){
             $code = Yii::$service->helper->appserver->order_paypal_standard_get_token_fail;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         
         // 得到当前的订单信息
@@ -69,9 +69,9 @@ class Placeorder
                 //return true;
                 $code = Yii::$service->helper->appserver->status_success;
                 $data = [ ];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                 
-                return $reponseData;
+                return $responseData;
                 
             }else{
                 
@@ -83,28 +83,28 @@ class Placeorder
                     }else{
                         $innerTransaction->rollBack();
                     }
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     $innerTransaction->rollBack();
                 }
                 $code = Yii::$service->helper->appserver->order_paypal_standard_updateorderinfoafterpayment_fail;
                 $data = [ ];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                 
-                return $reponseData;
+                return $responseData;
             }
         }else{
             $code = Yii::$service->helper->appserver->order_paypal_standard_payment_fail;
             $data = [
                 'error' => Yii::$service->helper->errors->get(','),
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         
     }
     /**
-     * @property $token | String 
+     * @param $token | String 
      * 通过paypal的api接口，进行支付下单
      */
     public function doCheckoutPayment($token)
@@ -136,7 +136,7 @@ class Placeorder
     }
 
     /**
-     * @property $post | Array
+     * @param $post | Array
      * 登录用户，保存货运地址到customer address ，然后把生成的
      * address_id 写入到cart中。
      * shipping method写入到cart中
@@ -161,7 +161,7 @@ class Placeorder
     */
 
     /**
-     * @property $post | Array
+     * @param $post | Array
      * @return bool
      *              检查前台传递的信息是否正确。同时初始化一部分类变量
      */

@@ -7,16 +7,18 @@
  * @license http://www.fecshop.com/license/
  */
 namespace fecshop\app\appserver\modules\Checkout\controllers;
-use fecshop\app\appserver\modules\AppserverController;
+
+use fecshop\app\appserver\modules\AppserverTokenController;
 use Yii;
+
 /**
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
-class CartController extends AppserverController
+class CartController extends AppserverTokenController
 {
     public $enableCsrfValidation = false;
-    
+
     public function actionIndex()
     {
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
@@ -24,15 +26,22 @@ class CartController extends AppserverController
         }
         $currency_info = Yii::$service->page->currency->getCurrencyInfo();
         $code = Yii::$service->helper->appserver->status_success;
-        $cart_info = $this->getCartInfo(false);
-        
+        $cart_info = $this->getCartInfo();
+        // check if is enable paypal express
+        $enablePaypalExpress = false;
+        $appName = Yii::$service->helper->getAppName();
+        $paypalExpressConfig = Yii::$app->store->get($appName.'_payment', 'paypal_express');
+        if ($paypalExpressConfig == Yii::$app->store->enable) {
+            $enablePaypalExpress = true;
+        }
         $data = [
             'cart_info' => $cart_info,
             'currency'  => $currency_info,
+            'enablePaypalExpress' => $enablePaypalExpress,
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-        
-        return $reponseData;
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+        return $responseData;
     }
 
     /** @return data example
@@ -89,6 +98,13 @@ class CartController extends AppserverController
                 }
                 $activeStatus = Yii::$service->cart->quoteItem->activeStatus;
                 $cart_info['products'][$k]['active'] = ($product_one['active'] == $activeStatus) ? 1 : 0;
+                if ( isset($cart_info['products'][$k]['spu_options']) && is_array($cart_info['products'][$k]['spu_options']) ) {
+                    $spu_options_arr = [];
+                    foreach ($cart_info['products'][$k]['spu_options'] as $op_k => $op_v) {
+                        $spu_options_arr[] = $op_k . ': ' . $op_v;
+                    }
+                    $cart_info['products'][$k]['spu_options_str'] = implode(',', $spu_options_arr);
+                }
             }
         }
 
@@ -124,8 +140,8 @@ class CartController extends AppserverController
         return $custom_option_info_arr;
     }
 
-    
-    
+
+
     /**
      * 把产品加入到购物车.
      */
@@ -138,6 +154,7 @@ class CartController extends AppserverController
         $custom_option = Yii::$app->request->post('custom_option');
         $product_id = Yii::$app->request->post('product_id');
         $qty = Yii::$app->request->post('qty');
+        $buy_now = Yii::$app->request->post('buy_now');
         //$custom_option  = \Yii::$service->helper->htmlEncode($custom_option);
         $product_id = \Yii::$service->helper->htmlEncode($product_id);
         $qty = \Yii::$service->helper->htmlEncode($qty);
@@ -158,6 +175,14 @@ class CartController extends AppserverController
             ];
             $innerTransaction = Yii::$app->db->beginTransaction();
             try {
+                if ($buy_now == 1) { // 如果是立即购买，则先将购物车中的产品disable掉
+                    if (!Yii::$service->cart->selectAllItem(false)) {
+                        $innerTransaction->rollBack();
+                        $code = Yii::$service->helper->appserver->cart_product_select_fail;
+                        $data = [];
+                        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+                    }
+                }
                 $addToCart = Yii::$service->cart->addProductToCart($item);
                 if ($addToCart) {
                     $innerTransaction->commit();
@@ -165,30 +190,30 @@ class CartController extends AppserverController
                     $data = [
                         'items_count' => Yii::$service->cart->quote->getCartItemCount(),
                     ];
-                    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-                    
-                    return $reponseData;
+                    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+                    return $responseData;
                 } else {
                     $innerTransaction->rollBack();
                     $code = Yii::$service->helper->appserver->cart_product_add_fail;
                     $data = Yii::$service->helper->errors->get(',');
-                    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-                    
-                    return $reponseData;
+                    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+                    return $responseData;
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $innerTransaction->rollBack();
             }
         } else {
             $code = Yii::$service->helper->appserver->cart_product_add_param_invaild;
             $data = '';
             $message = 'request post param: \'product_id\' and \'qty\' can not empty';
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data,$message);
-            
-            return $reponseData;
-            
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data,$message);
+
+            return $responseData;
+
         }
-        
+
     }
     /**
      * 购物车中添加优惠券.
@@ -201,10 +226,10 @@ class CartController extends AppserverController
         if (Yii::$app->user->isGuest) {
             $code = Yii::$service->helper->appserver->account_no_login_or_login_token_timeout;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-            
-            return $reponseData;
-           
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+            return $responseData;
+
         }
         $coupon_code = trim(Yii::$app->request->post('coupon_code'));
         $coupon_code = \Yii::$service->helper->htmlEncode($coupon_code);
@@ -216,7 +241,7 @@ class CartController extends AppserverController
                 } else {
                     $innerTransaction->rollBack();
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $innerTransaction->rollBack();
             }
             $error_arr = Yii::$service->helper->errors->get(true);
@@ -230,25 +255,25 @@ class CartController extends AppserverController
                 $data = [
                     'error' => $error_str,
                 ];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-                
-                return $reponseData;
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+                return $responseData;
             } else {
                 $code = Yii::$service->helper->appserver->status_success;
                 $data = [];
                 $message = 'add coupon success';
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data, $message);
-                
-                return $reponseData;
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data, $message);
+
+                return $responseData;
             }
         } else {
             $code = Yii::$service->helper->appserver->cart_coupon_invalid;
             $data = [
                 'error' => 'coupon code is empty',
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-            
-            return $reponseData;
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+            return $responseData;
         }
     }
     /**
@@ -262,9 +287,9 @@ class CartController extends AppserverController
         if (Yii::$app->user->isGuest) {
             $code = Yii::$service->helper->appserver->account_no_login_or_login_token_timeout;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-            
-            return $reponseData;
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+            return $responseData;
         }
         $coupon_code = trim(Yii::$app->request->post('coupon_code'));
         if ($coupon_code) {
@@ -277,10 +302,10 @@ class CartController extends AppserverController
                     $data = [
                         'error' => 'cancel coupon code fail',
                     ];
-                    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-                    
-                    return $reponseData;
-                    
+                    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+                    return $responseData;
+
                 }
                 $error_arr = Yii::$service->helper->errors->get(true);
                 if (!empty($error_arr)) {
@@ -294,39 +319,39 @@ class CartController extends AppserverController
                     $data = [
                         'error' => $error_str,
                     ];
-                    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-                    
-                    return $reponseData;
+                    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+                    return $responseData;
                 } else {
                     $innerTransaction->commit();
                     $code = Yii::$service->helper->appserver->status_success;
                     $data = [];
                     $message = 'cancel coupon success';
-                    $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data, $message);
-                    
-                    return $reponseData;
+                    $responseData = Yii::$service->helper->appserver->getResponseData($code, $data, $message);
+
+                    return $responseData;
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $innerTransaction->rollBack();
                 $code = Yii::$service->helper->appserver->cart_coupon_invalid;
                 $data = [
                     'error' => 'cancel coupon fail',
                 ];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-                
-                return $reponseData;
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+                return $responseData;
             }
         } else {
             $code = Yii::$service->helper->appserver->cart_coupon_invalid;
             $data = [
                 'error' => 'coupon code is empty',
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-            
-            return $reponseData;
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+            return $responseData;
         }
     }
-    
+
     public function actionUpdateinfo()
     {
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
@@ -347,27 +372,27 @@ class CartController extends AppserverController
                 $innerTransaction->commit();
                 $code = Yii::$service->helper->appserver->status_success;
                 $data = [];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-                
-                return $reponseData;
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+                return $responseData;
             } else {
                 $innerTransaction->rollBack();
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $innerTransaction->rollBack();
         }
         $code = Yii::$service->helper->appserver->cart_product_update_qty_fail;
         $data = [];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-        
-        return $reponseData;
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+
+        return $responseData;
     }
-    
+
     public function actionSelectone()
     {
         $item_id = Yii::$app->request->get('item_id');
         $checked = Yii::$app->request->get('checked');
-        $checked = $checked == 1 ? true : false; 
+        $checked = $checked == 1 ? true : false;
         $innerTransaction = Yii::$app->db->beginTransaction();
         try {
             $status = Yii::$service->cart->selectOneItem($item_id, $checked);
@@ -375,24 +400,24 @@ class CartController extends AppserverController
                 $innerTransaction->commit();
                 $code = Yii::$service->helper->appserver->status_success;
                 $data = [];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             } else {
                 $innerTransaction->rollBack();
                 $code = Yii::$service->helper->appserver->cart_product_select_fail;
                 $data = [];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $innerTransaction->rollBack();
         }
-        
-        return $reponseData;
+
+        return $responseData;
     }
-    
+
     public function actionSelectall()
     {
         $checked = Yii::$app->request->get('checked');
-        $checked = $checked == 1 ? true : false; 
+        $checked = $checked == 1 ? true : false;
         $innerTransaction = Yii::$app->db->beginTransaction();
         try {
             $status = Yii::$service->cart->selectAllItem($checked);
@@ -400,18 +425,18 @@ class CartController extends AppserverController
                 $innerTransaction->commit();
                 $code = Yii::$service->helper->appserver->status_success;
                 $data = [];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             } else {
                 $innerTransaction->rollBack();
                 $code = Yii::$service->helper->appserver->cart_product_select_fail;
                 $data = [];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $innerTransaction->rollBack();
         }
-        
-        return $reponseData;
+
+        return $responseData;
     }
-    
+
 }

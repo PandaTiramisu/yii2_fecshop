@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -19,6 +20,7 @@ use fecshop\services\Service;
 class Country extends Service
 {
     public $default_country;
+
     /**
      * 得到默认的国家
      */
@@ -30,6 +32,7 @@ class Country extends Service
 
         return $this->default_country;
     }
+
     /**
      * 通过国家，得到省的option html的字符串
      */
@@ -58,6 +61,7 @@ class Country extends Service
 
         return $str;
     }
+
     /**
      * 得到所有国家的option
      */
@@ -85,6 +89,7 @@ class Country extends Service
 
         return $str;
     }
+
     /**
      * 通过国家简码得到国家的全称名字
      */
@@ -94,6 +99,7 @@ class Country extends Service
 
         return isset($all_country[$key]) ? $all_country[$key] : $key;
     }
+
     /**
      * 国家option html
      */
@@ -117,8 +123,8 @@ class Country extends Service
     }
 
     /**
-     * @property $countryCode |String 国家简码
-     * @property $stateCode | String 省市简码
+     * @param $countryCode |String 国家简码
+     * @param $stateCode | String 省市简码
      * @return string OR Array 如果不传递省市简码，那么返回的是该国家对应的省市数组
      *                如果传递省市简码，传递的是省市的名称
      */

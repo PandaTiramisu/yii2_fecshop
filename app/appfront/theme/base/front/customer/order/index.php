@@ -8,7 +8,8 @@
  */
 ?>
 <div class="main container two-columns-left">
-<?= Yii::$service->page->widget->render('flashmessage'); ?>
+    <?= Yii::$service->page->widget->render('breadcrumbs',$this); ?>
+    <?= Yii::$service->page->widget->render('flashmessage'); ?>
 	<div class="col-main account_center">
 		<div class="std">
 			<div style="margin:4px 0 0">
@@ -23,6 +24,7 @@
 							<th><?= Yii::$service->page->translate->__('Ship To');?></th>
 							<th><span class="nobr"><?= Yii::$service->page->translate->__('Order Total');?></span></th>
 							<th><span class="nobr"><?= Yii::$service->page->translate->__('Order Status');?></span></th>
+                            <th><span class="nobr"><?= Yii::$service->page->translate->__('Tracking Number');?></span></th>
 							<th>&nbsp;</th>
 						</tr>
 					</thead>
@@ -38,11 +40,13 @@
 								<td><?= $order['customer_firstname'] ?> <?= $order['customer_lastname'] ?></td>
 								<td><span class="price"><?= $symbol ?><?= $order['grand_total'] ?></span></td>
 								<td><em><?= Yii::$service->page->translate->__($order['order_status']); ?></em></td>
-								<td class="a-center last">
+								<td><?= $order['tracking_number'] ?></td>
+                                <td class="a-center last">
 									<span class="nobr"><a href="<?=  Yii::$service->url->getUrl('customer/order/view',['order_id' => $order['order_id']]);?>"><?= Yii::$service->page->translate->__('View Order');?></a>
 									<span class="separator">|</span> <a class="link-reorder" href="<?=  Yii::$service->url->getUrl('customer/order/reorder',['order_id' => $order['order_id']]);?>"><?= Yii::$service->page->translate->__('Reorder');?></a>
 									</span>
 								</td>
+                                
 							</tr>
 						<?php endforeach; ?>
 					<?php endif; ?>

@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -20,10 +21,11 @@ use Yii;
 class Message extends Service
 {
     protected $_correctName = 'correct_message';
+
     protected $_errorName   = 'error_message';
 
     /**
-     * @property $message | String
+     * @param $message | String
      * 增加 correct message. 添加一些操作成功的提示信息，譬如产品加入购物车成功
      */
     protected function actionAddCorrect($message)
@@ -43,7 +45,7 @@ class Message extends Service
     }
 
     /**
-     * @property $message | String
+     * @param $message | String
      * 增加 error message.
      */
     protected function actionAddError($message)

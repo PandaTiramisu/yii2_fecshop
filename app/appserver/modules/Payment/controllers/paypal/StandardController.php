@@ -30,7 +30,8 @@ class StandardController extends AppserverController
         }
         $payment_method = Yii::$service->payment->paypal->standard_payment_method;
         Yii::$service->payment->setPaymentMethod($payment_method);
-        
+        $increment_id = Yii::$app->request->post('increment_id');
+        Yii::$service->order->setCurrentOrderIncrementId($increment_id);
         return $this->getBlock()->startPayment();
     }
     /**
@@ -81,7 +82,7 @@ class StandardController extends AppserverController
             }else{
                 $innerTransaction->rollBack();
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $innerTransaction->rollBack();
         }
         return Yii::$service->url->redirectByUrlKey('checkout/onepage');

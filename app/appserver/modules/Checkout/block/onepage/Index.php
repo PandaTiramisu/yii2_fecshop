@@ -32,19 +32,21 @@ class Index
     protected $is_empty_cart = false;
     public function getLastData()
     {
-        $cartInfo = Yii::$service->cart->getCartInfo(true);
+        //$shipping_method = 'middle_shipping';
+        $shipping_method = Yii::$app->request->get('shipping_method');
+        $cartInfo = Yii::$service->cart->getCartInfo(true, $shipping_method);
         if (!isset($cartInfo['products']) || !is_array($cartInfo['products']) || empty($cartInfo['products'])) {
             $code = Yii::$service->helper->appserver->order_generate_cart_product_empty;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
         $currency_info = Yii::$service->page->currency->getCurrencyInfo();
         $this->initAddress();
         $this->initCountry();
         //$this->initState();
-        $shippings = $this->getShippings();
+        $shippings = $this->getShippings($shipping_method);
         $last_cart_info = $this->getCartInfo(true, $this->_shipping_method, $this->_country, $this->_state);
         $isGuest = 1;
         if(!Yii::$app->user->isGuest){
@@ -68,9 +70,9 @@ class Index
             'countryArr'                => $this->_countrySelect,
             'country'                   => $this->_country,
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
 
     /**
@@ -284,9 +286,9 @@ class Index
         $data = [
             'stateArr' => $this->stateArr,
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
 
     /**
@@ -359,7 +361,7 @@ class Index
     }
 
     /**
-     * @property $current_shipping_method | String  当前选择的货运方式
+     * @param $current_shipping_method | String  当前选择的货运方式
      * @return Array，数据格式为：
      * [
      *      'method'=> $method,
@@ -388,7 +390,7 @@ class Index
         $current_shipping_method = Yii::$service->shipping->getCurrentShippingMethod($custom_shipping_method, $cartShippingMethod, $country, $region, $product_final_weight);
         $this->_shipping_method = $current_shipping_method;
         // 得到所有，有效的shipping method
-        $shippingArr = $this->getShippingArr($product_final_weight, $current_shipping_method, $country, $region = '*');
+        $shippingArr = $this->getShippingArr($product_final_weight, $current_shipping_method, $country, $region);
         
         return $shippingArr;
     }
@@ -441,9 +443,9 @@ class Index
     }
 
     /**
-     * @property $weight | Float , 总量
-     * @property $shipping_method | String  $shipping_method key
-     * @property $country | String  国家
+     * @param $weight | Float , 总量
+     * @param $shipping_method | String  $shipping_method key
+     * @param $country | String  国家
      * @return array ， 通过上面的三个参数，得到各个运费方式对应的运费等信息。
      */
     public function getShippingArr($weight, $current_shipping_method, $country, $region)
@@ -546,15 +548,15 @@ class Index
                 'cart_info'                 => $last_cart_info,
                 'shippings'                 => $shippings,
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         } else {
             $code = Yii::$service->helper->appserver->order_shipping_country_empty;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
             
         }
     }

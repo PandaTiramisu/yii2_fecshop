@@ -1,10 +1,10 @@
 <?php
 /**
- * FecShop file.
+ * Fecmall file.
  *
  * @link http://www.fecshop.com/
- * @copyright Copyright (c) 2016 FecShop Software LLC
- * @license http://www.fecshop.com/license/
+ * @copyright Copyright (c) 2016 Fecmall Software LLC
+ * @license http://www.fecmall.com/license/
  */
 /* @var $this \yii\web\View */
 /* @var $content string */
@@ -13,22 +13,29 @@ use yii\bootstrap\Nav;
 use yii\bootstrap\NavBar;
 use yii\widgets\Breadcrumbs;
 use fecadmin\myassets\AppAsset;
+use fecadmin\myassets\AppZhAsset;
 use common\widgets\Alert;
 use fec\helpers\CUrl;
+use fec\helpers\CRequest;
 use fecadmin\views\layouts\Head;
-use fecadmin\views\layouts\Footer;
-use fecadmin\views\layouts\Header;
-use fecadmin\views\layouts\Menu;
-AppAsset::register($this);
-$publishedPath = $this->assetManager->publish('@fecadmin/myassets/dwz_jui-master/dwz.frag.xml');
+
+$currentLangCode = Yii::$service->admin->getCurrentLangCode();
+if ($currentLangCode == 'zh') {
+    AppZhAsset::register($this);
+    $publishedPath = $this->assetManager->publish('@fecadmin/myassets/dwz_jui-master/dwz.frag.zh.xml');
+} else {
+    AppAsset::register($this);
+    $publishedPath = $this->assetManager->publish('@fecadmin/myassets/dwz_jui-master/dwz.frag.xml');
+}
 ?>
 <?php
-// fecshop 多模板机制的js和css部分
+// Fecmall 多模板机制的js和css部分
 $jsOptions = [
 	# js config 1
 	[
 		'js'	=>[
 			'js/appadmin.js',
+            'js/jquery-editable-select.js',
 		],
         // js 放到尾部
         'options' => [
@@ -63,6 +70,8 @@ $cssOptions = [
 	[
 		'css'	=>[
 			'css/appadmin.css',
+			'css/bootstrap-appadmin.css',
+            'css/jquery-editable-select.css',
 		],
         // 将css放到最后面
         'options' => [
@@ -73,6 +82,7 @@ $cssOptions = [
 \Yii::$service->page->asset->jsOptions 	= \yii\helpers\ArrayHelper::merge($jsOptions, \Yii::$service->page->asset->jsOptions);
 \Yii::$service->page->asset->cssOptions = \yii\helpers\ArrayHelper::merge($cssOptions, \Yii::$service->page->asset->cssOptions);				
 \Yii::$service->page->asset->register($this);
+$logoPath = $this->assetManager->publish('@fecshop/app/appadmin/theme/base/default/assets/images/blue_logo.png');
 ?>
 
 <?php $this->beginPage() ?>
@@ -83,8 +93,9 @@ $cssOptions = [
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <?= Html::csrfMetaTags() ?>
-    <title><?= $this->title ? Html::encode($this->title) : 'Fecshop 后台管理系统' ?></title>
-    <?php $this->head() ?>  
+    <title><?= $this->title ? Html::encode($this->title) : Yii::$service->page->translate->__('Fecmall Admin Manager System') ?></title>
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" >
+	<?php $this->head() ?>
 <script> 
 
 　$(function(){
@@ -107,43 +118,57 @@ $cssOptions = [
 <body>
 <?php $this->beginBody() ?>
 	<div id="layout">
-		<div id="header">
-			<?= Header::getContent();  ?>
-			<!-- navMenu -->
-		</div>
 		<div id="leftside">
-			<div id="sidebar_s">
-				<div class="collapse">
-					<div class="toggleCollapse"><div></div></div>
-				</div>
-			</div>
+			
 			<div id="sidebar">
-				<div class="toggleCollapse"><h2>主菜单</h2><div>收缩</div></div>
+				<div class="toggleCollapse" style="background:#20222A !important;overflow: visible;">
+					<h2 style="font-size:20px;font-weight:100;    padding-top: 10px;padding-bottom: 10px;"><?= Yii::$service->page->translate->__('Fecmall'); ?></h2>
+					<div><i class=”fa fa-list”></i></div>
+                    
+				</div>
 
 				<div class="accordion" fillSpace="sidebar">
-					<?= Menu::getContent();  ?>
+                    
+					<?= Yii::$service->admin->menu->getLeftMenuHtml();  ?>
 				</div>
 			</div>
 		</div>
 		<div id="container">
-			<div id="navTab" class="tabsPage">
+			<div id="navTab" class="tabsPage" style="position: relative;">
 				<div class="tabsPageHeader">
 					<div class="tabsPageHeaderContent"><!-- 显示左右控制时添加 class="tabsPageHeaderMargin" -->
 						<ul class="navTab-tab">
-							<li tabid="main" class="main"><a href="javascript:;"><span><span class="home_icon">我的主页</span></span></a></li>
+							<li tabid="main" class="main"><a href="javascript:;"><span><span class="home_icon"><?= Yii::$service->page->translate->__('My Main Page'); ?></span></span></a></li>
 						</ul>
 					</div>
-					<div class="tabsLeft">left</div><!-- 禁用只需要添加一个样式 class="tabsLeft tabsLeftDisabled" -->
-					<div class="tabsRight">right</div><!-- 禁用只需要添加一个样式 class="tabsRight tabsRightDisabled" -->
-					<div class="tabsMore">more</div>
+					
 				</div>
+                
+                <div class="headerNav" style="position: absolute;right: 25px; top: 0; width: 200px;  height: 30px; z-index: 999999;">
+				
+                      <?php $currentLangCode = Yii::$service->admin->getCurrentLangCode() ?>
+                      <?php $langArr = Yii::$service->admin->getLangArr() ?>
+                      <select class="store_langs" style="font-size:10px;">
+                           <?php foreach ($langArr as $code => $name): ?>
+                               <option  value="<?= $code ?>" <?= ($code == $currentLangCode) ? 'selected="selected"' : ''  ?>>
+                                   <?= $name ?>
+                               </option>
+                          <?php endforeach; ?>
+                       </select>
+                    <a style="color:#777; display: block; height: 21px;position: absolute; right: 5px;top: 10px;z-index: 31;"
+                       doPost
+                       href='javascript:doPost("<?= Yii::$service->url->getUrl("fecadmin/logout") ?>", {"<?= CRequest::getCsrfName() ?>": "<?= CRequest::getCsrfValue() ?>", "islogout": "1"}) '>
+                        <?= Yii::$service->page->translate->__('Logout'); ?>
+                    </a>
+                </div>
+                
 				<ul class="tabsMoreList">
-					<li><a href="javascript:;">我的主页</a></li>
+					<li><a href="javascript:;"><?= Yii::$service->page->translate->__('My Main Page'); ?></a></li>
 				</ul>
 				<div class="navTab-panel tabsPageContent layoutBox">
 					<div class="page unitBox">
 						<div class="accountInfo">
-							<p><span>您好：<?= \fec\helpers\CUser::getCurrentUsername();   ?></span></p>
+							<p><span><?= Yii::$service->page->translate->__('Hello'); ?>: <?= \fec\helpers\CUser::getCurrentUsername();   ?></span></p>
                         </div>
                         
                         <?php $day = 31;  // 获取三个月的数据?>
@@ -152,20 +177,20 @@ $cssOptions = [
                         
                         <?php list($orderAmount, $orderCount) = Yii::$service->order->getPreMonthOrder($day); ?>
                         <div style="padding-left:100px;font-size:16px;">
-                            最近1个月的订单金额趋势(基础货币)
+                            <?= Yii::$service->page->translate->__('Order amount trend for the last month (base currency)'); ?>
                         </div>
                         <?= Yii::$service->helper->echart->getLine($orderAmount, true); ?>
                         
                         <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
                         <div style="padding-left:100px;font-size:16px;">
-                            最近1个月的订单个数趋势
+                            <?= Yii::$service->page->translate->__('Trends in the number of orders in the last month'); ?>
                         </div>
                         <?= Yii::$service->helper->echart->getLine($orderCount, true); ?>
                         
 						<br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
                         
                         <div style="padding-left:100px;font-size:16px;">
-                            最近1个月的注册用户个数
+                            <?= Yii::$service->page->translate->__('Number of registered users in the last month'); ?>
                         </div>
                         <?php $customerRegisterCount = Yii::$service->customer->getPreMonthCustomer($day); ?>
                         <?= Yii::$service->helper->echart->getLine($customerRegisterCount, false); ?>
@@ -178,10 +203,43 @@ $cssOptions = [
 	</div>
 <footer class="footer">
     <div class="container">
-        <?= Footer::getContent(); ?>
+        <div style="position:absolute;z-index: 99999;" id="footer">
+            © 2015-2019
+            <a style="text-decoration:none" href="http://www.fecmall.com" target="_blank">
+                <?= Yii::$service->page->translate->__('Fecmall Team'); ?> - www.fecmall.com
+            </a>
+        </div>
     </div>
 </footer>
 <?php $this->endBody() ?>
+<script> 
+　$(document).ready(function(){
+        $(".store_langs").change(function(){
+            $langCode = $(this).val();
+            $.ajax({
+                url:'<?= Yii::$service->url->getUrl('fecadmin/login/changelang')  ?>',
+                async:true,
+                timeout: 80000,
+                dataType: 'json', 
+                type:'get',
+                data:{
+                    'lang':$langCode,
+                },
+                success:function(data, textStatus){
+                    if (data.status == "success"){
+                        window.location.reload();
+                    } else {
+                        
+                    }
+                },
+                error:function(){
+                    alert('<?= Yii::$service->page->translate->__('loading category information error'); ?>');
+                }
+            });
+        });    
+    
+    });  
+</script> 
 </body>
 </html>
 <?php $this->endPage() ?>

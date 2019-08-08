@@ -9,9 +9,11 @@
 ?>
 <?php
 use fecshop\app\appfront\helper\Format;
+use fec\helpers\CRequest;
 ?>
 <div class="main container one-column">
 	<div class="col-main">
+    <?= Yii::$service->page->widget->render('breadcrumbs',$this); ?>
     <?= Yii::$service->page->widget->render('flashmessage'); ?>
 	<?php if(is_array($cart_info) && !empty($cart_info)):   ?>
 			    
@@ -86,7 +88,7 @@ use fecshop\app\appfront\helper\Format;
 										<ul>
 											<?php foreach($product_one['custom_option_info'] as $label => $val):  ?>
 												
-												<li><?= Yii::$service->page->translate->__(ucwords($label).':') ?><?= Yii::$service->page->translate->__($val) ?> </li>
+												<li><?= Yii::$service->page->translate->__(ucwords($label)).':' ?><?= Yii::$service->page->translate->__($val) ?> </li>
 												
 											<?php endforeach;  ?>
 										</ul>
@@ -250,11 +252,12 @@ use fecshop\app\appfront\helper\Format;
 						<div class="proceed_to_checkout">
 							
 							<button onclick="location.href='<?= Yii::$service->url->getUrl('checkout/onepage');  ?>'" type="button" title="Proceed to Checkout" class="button btn-proceed-checkout btn-checkout"><span><span><?= Yii::$service->page->translate->__('Proceed to Pay');?></span></span></button>
-							
-							<span class="or">- <?= Yii::$service->page->translate->__('OR');?> - </span>
-							<a class="express_paypal" href="<?= Yii::$service->url->getUrl('payment/paypal/express/start');    ?>">
-							
-							</a>
+							<?php if ($enablePaypalExpress): ?>
+                                <span class="or">- <?= Yii::$service->page->translate->__('OR');?> - </span>
+                                <a class="express_paypal" href="<?= Yii::$service->url->getUrl('payment/paypal/express/start');    ?>">
+                                
+                                </a>
+                            <?php endif;  ?>
 						</div>
 					</div>
 					<div class="clear"></div>
@@ -284,6 +287,8 @@ use fecshop\app\appfront\helper\Format;
 <script>
 	// add to cart js	
 <?php $this->beginBlock('changeCartInfo') ?>
+csrfName = "<?= CRequest::getCsrfName() ?>";
+csrfVal = "<?= CRequest::getCsrfValue() ?>";
 $(document).ready(function(){
     // set select all checkbox
     selectall = "<?= Yii::$app->request->get('selectall') ?>";
@@ -315,17 +320,21 @@ $(document).ready(function(){
 				item_id:$item_id,
 				up_type:"less_one"
 			};
+            $data[csrfName] = csrfVal;
+            
 			jQuery.ajax({
 				async:true,
 				timeout: 6000,
 				dataType: 'json', 
-				type:'get',
+				type:'post',
 				data: $data,
 				url:updateCartInfoUrl,
 				success:function(data, textStatus){ 
-					if(data.status == 'success'){
+					if (data.status == 'success') {
 						window.location.href=currentUrl;
-					}
+					} else {
+                        alert(data.content);
+                    }
 				},
 				error:function (XMLHttpRequest, textStatus, errorThrown){}
 			});
@@ -338,17 +347,21 @@ $(document).ready(function(){
 			item_id:$item_id,
 			up_type:"add_one"
 		};
+        $data[csrfName] = csrfVal;
+        
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:updateCartInfoUrl,
 			success:function(data, textStatus){ 
-				if(data.status == 'success'){
+				if (data.status == 'success') {
 					window.location.href=currentUrl;
-				}
+				} else {
+                    alert(data.content);
+                }
 			},
 			error:function (XMLHttpRequest, textStatus, errorThrown){}
 		});
@@ -362,11 +375,13 @@ $(document).ready(function(){
 			item_id:$item_id,
 			up_type:"remove"
 		};
+        $data[csrfName] = csrfVal;
+        
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:updateCartInfoUrl,
 			success:function(data, textStatus){ 
@@ -387,11 +402,13 @@ $(document).ready(function(){
 			item_id:$item_id,
 			checked:checked
 		};
+        $data[csrfName] = csrfVal;
+        
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:selectOneProductUrl,
 			success:function(data, textStatus){ 
@@ -410,12 +427,14 @@ $(document).ready(function(){
 		$data = {
 			checked:checked
 		};
+        $data[csrfName] = csrfVal;
+        
         selectCurrentUrl = currentUrl + '?selectall=' + checked;
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'get',
+			type:'post',
 			data: $data,
 			url:selectAllProductUrl,
 			success:function(data, textStatus){ 
@@ -437,15 +456,17 @@ $(document).ready(function(){
 			coupon_url = "<?=  Yii::$service->url->getUrl('checkout/cart/cancelcoupon'); ?>";
 		}
 		if(!coupon_code){
-			alert("coupon can not empty!");
+			//alert("coupon can not empty!");
 		}
+        $data = {"coupon_code":coupon_code};
+        $data[csrfName] = csrfVal;
 		//coupon_url = $("#discount-coupon-form").attr("action");
 		$.ajax({
 			async:true,
 			timeout: 6000,
 			dataType: 'json', 
-			type:'post',
-			data: {"coupon_code":coupon_code},
+			type: 'post',
+			data: $data,
 			url:coupon_url,
 			success:function(data, textStatus){ 
 				if(data.status == 'success'){
@@ -458,7 +479,6 @@ $(document).ready(function(){
 			},
 			error:function (XMLHttpRequest, textStatus, errorThrown){}
 		});
-			
 		
 	});
 	

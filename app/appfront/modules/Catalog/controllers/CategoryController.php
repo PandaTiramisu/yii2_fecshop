@@ -51,7 +51,7 @@ class CategoryController extends AppfrontController
         $cacheName = 'category';
         if (Yii::$service->cache->isEnable($cacheName)) {
             $timeout = Yii::$service->cache->timeout($cacheName);
-            $disableUrlParam = Yii::$service->cache->timeout($cacheName);
+            $disableUrlParam = Yii::$service->cache->disableUrlParam($cacheName);
             $cacheUrlParam = Yii::$service->cache->cacheUrlParam($cacheName);
             $get_str = '';
             $get = Yii::$app->request->get();
@@ -61,8 +61,9 @@ class CategoryController extends AppfrontController
                     'enabled' => false,
                     'class' => 'yii\filters\PageCache',
                     'only' => ['index'],
-
                 ];
+                
+                return $behaviors;
             }
             if (is_array($get) && !empty($get) && is_array($cacheUrlParam)) {
                 foreach ($get as $k=>$v) {

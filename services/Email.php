@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -19,17 +20,39 @@ use Yii;
 class Email extends Service
 {
     public $mailerConfig;
-    public $defaultForm;
+
+    // public $defaultForm;
+
     public $mailerInfo;
+
     /**
      * 邮件模板部分动态数据提供类的返回数据的函数名字，使用默认值即可。
      */
     public $defaultObMethod = 'getLastData';
 
     protected $_mailer;      // Array
+
     protected $_mailer_from; //Array
+
     protected $_from;
 
+    public function init()
+    {
+        parent::init();
+        $this->mailerInfo['storeName'] = Yii::$app->store->get('email', 'baseStoreName');
+        $this->mailerInfo['phone'] = Yii::$app->store->get('email', 'baseContactsPhone');
+        $this->mailerInfo['contacts']['emailAddress'] = Yii::$app->store->get('email', 'baseContactsEmail');
+        $this->mailerConfig['default']['class'] = 'yii\swiftmailer\Mailer';
+        $this->mailerConfig['default']['transport'] = [
+            'class' => 'Swift_SmtpTransport',
+            'host'              => Yii::$app->store->get('email', 'default_smtp_host'),            //SMTP Host
+            'username'      => Yii::$app->store->get('email', 'default_smtp_username'),     //SMTP 账号
+            'password'      => Yii::$app->store->get('email', 'default_smtp_password'),     //SMTP 密码
+            'port'              => Yii::$app->store->get('email', 'default_smtp_port'),                     //SMTP 端口
+            'encryption'    => Yii::$app->store->get('email', 'default_smtp_encryption'),  
+        ];
+        $this->mailerConfig['default']['messageConfig'] = ['charset'=>'UTF-8'];
+    }
     /**
      * 在邮箱中显示的 邮箱地址
      */
@@ -65,7 +88,7 @@ class Email extends Service
     }
 
     /**
-     * @property $key | String
+     * @param $key | String
      * 得到MailConfig.
      */
     protected function getMailerConfig($key = 'default')
@@ -95,7 +118,7 @@ class Email extends Service
     }
 
     /**
-     * @property $mailerConfig | Array or String  mailer组件的配置， 您可以设置为空，使用默认的邮箱配置，也可以设置为字符串，字符串对应配置中$mailerConfig对应的key。
+     * @param $mailerConfig | Array or String  mailer组件的配置， 您可以设置为空，使用默认的邮箱配置，也可以设置为字符串，字符串对应配置中$mailerConfig对应的key。
      * 1.打开@fecshop/config/services/Config.php ， 可以看到 $mailerConfig =>  ['default' => [...]]的配置，当该参数为空或'default'的时候，就使用该默认配置。
      * 2.当该参数设置除default之外的字符串的时候，就是 $mailerConfig 配置数组中其他的key对应的配置，如果不存在，则返回为空。
      * 3.您可以完全不使用配置数组中的配置，完全动态配置他，下面该参数动态配置的例子：
@@ -173,14 +196,14 @@ class Email extends Service
     }
 
     /**
-     * @property $sendInfo | Array ， example：
+     * @param $sendInfo | Array ， example：
      * [
      *	'to' => $to,
      *	'subject' => $subject,
      *	'htmlBody' => $htmlBody,
      *	'senderName'=> $senderName,
      * ]
-     * @property $mailerConfigParam | array or String，对于该参数的配置，
+     * @param $mailerConfigParam | array or String，对于该参数的配置，
      * 您可以参看上面的函数 function actionMailer($mailerConfigParam = '') 或者到 @fecshop/config/services/Email.php参看 $mailerConfig的配置
      * 该函数用于发送邮件.
      */
@@ -220,19 +243,28 @@ class Email extends Service
         } else {
             $setFrom = $from;
         }
-        $mailer->compose()
-            ->setFrom($setFrom)
-            ->setTo($to)
-            ->setSubject($subject)
-            ->setHtmlBody($htmlBody)
-            ->send();
-        return true;
+        try {
+            $mailer->compose()
+                ->setFrom($setFrom)
+                ->setTo($to)
+                ->setSubject($subject)
+                ->setHtmlBody($htmlBody)
+                ->send();
+            return true;
+        } catch (\Swift_TransportException $e) {
+            $errorMessage = $e->getMessage();
+            Yii::$service->helper->errors->add($errorMessage);
+            return false;
+        } catch (\Exception $e) {
+            Yii::$service->helper->errors->add('send email fail');
+            return false;
+        }
     }
 
     /**
-     * @property  $widget | String，邮件模板中的动态数据的提供部分的class
-     * @property  $viewPath | String，邮件模板中的显示数据的html部分。
-     * @property  $langCode 当前的语言
+     * @param  $widget | String，邮件模板中的动态数据的提供部分的class
+     * @param  $viewPath | String，邮件模板中的显示数据的html部分。
+     * @param  $langCode 当前的语言
      * @proeprty  $params 传递给 $widget 对应的class，用于将数据传递过去。
      * 根据提供的动态数据提供者$widget 和 view路径$viewPath，语言$langCode，以及其他参数$params（这个数组会设置到$widget对应的class的params变量中）
      * 最终得到邮件标题和邮件内容
@@ -291,7 +323,7 @@ class Email extends Service
     }
 
     /**
-     * @property $config | Array,example:
+     * @param $config | Array,example:
      *	[
      *		'class' => $widget,
      *		'view'  => $subjectViewFile,
@@ -316,7 +348,7 @@ class Email extends Service
     }
 
     /**
-     * @property $email_address | String  邮箱地址字符串
+     * @param $email_address | String  邮箱地址字符串
      * @return bool 如果格式正确，返回true
      */
     protected function actionValidateFormat($email_address)

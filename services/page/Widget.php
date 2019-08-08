@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -24,10 +25,11 @@ use yii\base\InvalidValueException;
 class Widget extends Service
 {
     public $defaultObMethod = 'getLastData';
+
     public $widgetConfig;
 
     /**
-     * @property configKey   String or Array
+     * @param configKey   String or Array
      * 如果传递的是一个配置数组，内容格式如下：
      * [
      *    # class 选填
@@ -35,7 +37,7 @@ class Widget extends Service
      *    # view 为 必填 ， view可以用两种方式
      *    #  view 1 使用绝对地址的方式
      *    'view'  => '@fec/views/testmenu/index.php',
-     *        OR
+     *    OR
      *    #  view 2 使用相对地址，通过当前模板进行查找
      *    'view'  => 'cms/home/index.php',
      *
@@ -65,10 +67,11 @@ class Widget extends Service
 
         return $this->renderContent($configKey, $config, $parentThis);
     }
+
     /**
-     * @property $configKey | string ,使用配置中的widget，该参数对应相应的数组key
-     * @property $config,就是上面actionRender()方法中的参数，格式一样。
-     * @property $parentThis | array or '' , 调用层传递的参数数组，可以在view中调用。
+     * @param $configKey | string ,使用配置中的widget，该参数对应相应的数组key
+     * @param $config,就是上面actionRender()方法中的参数，格式一样。
+     * @param $parentThis | array or '' , 调用层传递的参数数组，可以在view中调用。
      *
      */
     protected function actionRenderContentHtml($configKey, $config, $parentThis = '')
@@ -102,26 +105,42 @@ class Widget extends Service
 
         return Yii::$app->view->renderFile($viewFile, $params);
     }
+    
+    public  $_cache_arr = [
+        'head' => 'headBlockCache',
+        'header' => 'headerBlockCache',
+        'menu' => 'menuBlockCache',
+        'footer' => 'footerBlockCache',
+    ];
+    
     /**
-     * @property $configKey | string ,使用配置中的widget，该参数对应相应的数组key
-     * @property $config,就是上面actionRender()方法中的参数，格式一样。
-     * @property $parentThis | array or '' , 调用层传递的参数数组，可以在view中调用。
+     * @param $configKey | string , 标记，以及报错排查时使用的key。
+     * @param $config,就是上面actionRender()方法中的参数，格式一样。
+     * @param $parentThis | array or '' , 调用层传递的参数数组，可以在view中调用。
      *
      */
     protected function actionRenderContent($configKey, $config, $parentThis = '')
     {
-        if (isset($config['cache']['enable']) && $config['cache']['enable']) {
+        // 从配置中读取cache的enable状态
+        $cacheEnable = false;
+        $cacheConfigKey = $this->_cache_arr[$configKey];
+        $appName = Yii::$service->helper->getAppName();
+        $cacheConfig = Yii::$app->store->get($appName.'_cache');
+        if ($cacheConfigKey && isset($cacheConfig[$cacheConfigKey]) && $cacheConfig[$cacheConfigKey] == Yii::$app->store->enable) {
+            $cacheEnable = true;
+        }
+        if ($cacheEnable) { 
             if (!isset($config['class']) || !$config['class']) {
                 throw new InvalidConfigException('in widget ['.$configKey.'],you enable cache ,you must config widget class .');
             } elseif ($ob = new $config['class']()) {
                 if ($ob instanceof BlockCache) {
                     $cacheKey = $ob->getCacheKey();
-                    if (!($content = CCache::get($cacheKey))) {
+                    if (!($content = Yii::$app->cache->get($cacheKey))) {
                         $cache = $config['cache'];
                         $timeout = isset($cache['timeout']) ? $cache['timeout'] : 0;
                         unset($config['cache']);
                         $content = $this->renderContentHtml($configKey, $config, $parentThis);
-                        CCache::set($cacheKey, $content, $timeout);
+                        Yii::$app->cache->set($cacheKey, $content, $timeout);
                     }
 
                     return $content;
@@ -131,7 +150,7 @@ class Widget extends Service
             }
         }
         // 查看 $config['class'] 是否在YiiRewriteMap重写中存在配置，如果存在，则替换
-        $config['class'] = Yii::mapGetClassName($config['class']);
+        !isset($config['class']) || $config['class'] = Yii::mapGetClassName($config['class']);
         $content = $this->renderContentHtml($configKey, $config, $parentThis);
 
         return $content;
@@ -158,7 +177,7 @@ class Widget extends Service
             }
         }
 
-        /* not find view file */
+        // not find view file
         if ($throwError) {
             $notExistFile = [];
             foreach ($absoluteDir as $dir) {

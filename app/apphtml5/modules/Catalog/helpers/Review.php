@@ -15,21 +15,23 @@ use Yii;
  * @author Terry Zhao <2358269014@qq.com>
  * @since 1.0
  */
-class Review
+class Review  extends \yii\base\BaseObject
 {
     // 初始化当前appfront的设置，覆盖service的初始设置。
     public static function initReviewConfig()
     {
-        // 用当前的配置，覆盖service的公用配置。
-        $reviewParam = Yii::$app->getModule('catalog')->params['review'];
-
-        if (isset($reviewParam['filterByLang'])) {
-            Yii::$service->product->review->filterByLang = $reviewParam['filterByLang'];
-        }
+        // $reviewParam = Yii::$app->getModule('catalog')->params['review'];
+        //$appName = Yii::$service->helper->getAppName();
+        //$reviewFilterByLang = Yii::$app->store->get($appName.'_catalog','review_filterByLang');
+        //$reviewFilterByLang = ($reviewFilterByLang == Yii::$app->store->enable) ? true : false;
+        //
+        //if (isset($reviewParam['filterByLang'])) {
+        //    Yii::$service->product->review->filterByLang = $reviewParam['filterByLang'];
+        //}
     }
 
     /**
-     * @property $product | Object
+     * @param $product | Object
      * @return array
      *               通过service的配置，是否通过语言进行过滤产品的总个数
      *               如果不通过语言，则直接将产品的属性	review_count 		reviw_rate_star_average 返回

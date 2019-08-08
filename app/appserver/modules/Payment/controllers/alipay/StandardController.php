@@ -34,14 +34,15 @@ class StandardController extends AppserverController
         //echo '支付宝支付跳转中...';
         //Yii::$service->payment->alipay->devide = 'wap';
         $return_url = Yii::$app->request->post('return_url');
-       
+        $increment_id = Yii::$app->request->post('increment_id');
+        Yii::$service->order->setCurrentOrderIncrementId($increment_id);
         $code = Yii::$service->helper->appserver->status_success;
         $data = [
             'redirectUrl'  => Yii::$service->payment->alipay->start($return_url,'GET'),
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
     /**
      * 从支付宝支付成功后，跳转返回 fec-shop 的部分
@@ -53,16 +54,16 @@ class StandardController extends AppserverController
             
             $code = Yii::$service->helper->appserver->status_success;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }else{
             
             $code = Yii::$service->helper->appserver->order_alipay_payment_fail;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
     }
     /**
@@ -99,7 +100,7 @@ class StandardController extends AppserverController
             }else{
                 $innerTransaction->rollBack();
             }
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			$innerTransaction->rollBack();
 		}
         return Yii::$service->url->redirectByUrlKey('checkout/onepage');

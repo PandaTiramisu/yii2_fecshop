@@ -1,5 +1,6 @@
 <?php
-/**
+
+/*
  * FecShop file.
  *
  * @link http://www.fecshop.com/
@@ -25,10 +26,11 @@ class Info extends Service
     //protected $_productModel;
     
     //public function __construct(){
-        //list($this->_productModelName,$this->_productModel) = \Yii::mapGet($this->_productModelName);  
+    //list($this->_productModelName,$this->_productModel) = \Yii::mapGet($this->_productModelName);
     //}
+
     /**
-     * @property $custome_option | Array
+     * @param $custome_option | Array
      * $custome_option = [
      *      "my_color" 	=> "red",
      *      "my_size" 	=> "M",
@@ -51,8 +53,8 @@ class Info extends Service
     }
 
     /**
-     * @property $custom_option | Array 前台传递的custom option 一维数组。
-     * @property $product_custom_option | Array  数据库中存储的产品custom_option的值
+     * @param $custom_option | Array 前台传递的custom option 一维数组。
+     * @param $product_custom_option | Array  数据库中存储的产品custom_option的值
      * 验证前台传递的custom option 是否正确。
      */
     public function validateProductCustomOption($custom_option, $product_custom_option)
@@ -84,12 +86,12 @@ class Info extends Service
      */
 
     /**
-     * @property $custom_option_arr | Array ， 用户选择提交数据，格式为
+     * @param $custom_option_arr | Array ， 用户选择提交数据，格式为
      *    [
      *        'color' => 'red',
      *        'size'  => 'L',
      *    ]
-     * @property $product_custom_option | Array ， 产品表中的custom_option属性值，譬如：
+     * @param $product_custom_option | Array ， 产品表中的custom_option属性值，譬如：
      *  [
      *      "black-s-s2-s3": [
      *          "my_color": "black",

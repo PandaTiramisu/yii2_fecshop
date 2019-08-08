@@ -31,9 +31,9 @@ class AddressController extends AppserverTokenController
         $data = [
             'addressList' => $this->coll(),
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
         
     }
     
@@ -73,17 +73,19 @@ class AddressController extends AppserverTokenController
         $stateIsSelect = 0;
         if(!empty($stateArr)){
             $stateIsSelect = 1;
+            
         }
         $address['stateArr'] = $stateArr;
         $address['stateIsSelect'] = $stateIsSelect;
+        $address['stateStr'] = isset($stateArr[$state]) ? $stateArr[$state] : $state;
         
         $code = Yii::$service->helper->appserver->status_success;
         $data = [
             'address' => $address,
         ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
         
     }
     
@@ -93,20 +95,21 @@ class AddressController extends AppserverTokenController
         if(Yii::$app->request->getMethod() === 'OPTIONS'){
             return [];
         }
-        $address_id = Yii::$app->request->post('address_id');
+        $address_id = Yii::$app->request->get('address_id');
         if($address_id){
             $this->removeAddressById($address_id);
             
             $code = Yii::$service->helper->appserver->status_success;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }else{
             $code = Yii::$service->helper->appserver->account_address_is_not_exist;
             $data = [];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
+            return $responseData;
         }
     }
     
@@ -160,9 +163,9 @@ class AddressController extends AppserverTokenController
                 'stateIsSelect' => $stateIsSelect,
                 'stateArr' => $stateArr,
             ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
             
-            return $reponseData;
+            return $responseData;
         }
     }
     
@@ -173,11 +176,12 @@ class AddressController extends AppserverTokenController
         $address_id         = Yii::$app->request->post('address_id'); 
         $first_name         = Yii::$app->request->post('first_name'); 
         $last_name          = Yii::$app->request->post('last_name'); 
-        $email              = Yii::$app->request->post('email'); 
+        //$email              = Yii::$app->request->post('email'); 
         $telephone          = Yii::$app->request->post('telephone'); 
         $addressCountry     = Yii::$app->request->post('addressCountry'); 
         $addressState       = Yii::$app->request->post('addressState'); 
         $city               = Yii::$app->request->post('city'); 
+        $area               = Yii::$app->request->post('area'); 
         $street1            = Yii::$app->request->post('street1'); 
         $street2            = Yii::$app->request->post('street2'); 
         $zip                = Yii::$app->request->post('zip'); 
@@ -189,88 +193,65 @@ class AddressController extends AppserverTokenController
             if ($customer_id != $addressModel['customer_id']) {
                 $code = Yii::$service->helper->appserver->account_address_is_not_exist;
                 $data = [];
-                $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+                $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
                 
-                return $reponseData;
+                return $responseData;
             }
         }
-        
-        $arr = [];
-        if (!$email) {
-            $error[] = ['email'];
-        } else {
-            $arr['email'] = $email;
-        }
-        if (!$first_name) {
-            $error[] = ['first_name'];
-        } else {
-            $arr['first_name'] = $first_name;
-        }
-        if (!$last_name) {
-            $error[] = ['last_name'];
-        } else {
-            $arr['last_name'] = $last_name;
-        }
-        if (!$telephone) {
-            $error[] = ['telephone'];
-        } else {
-            $arr['telephone'] = $telephone;
-        }
-        if (!$addressCountry) {
-            $error[] = ['country'];
-        } else {
-            $arr['country'] = $addressCountry;
-        }
-        if (!$addressState) {
-            $error[] = ['state'];
-        } else {
-            $arr['state'] = $addressState;
-        }
-        if (!$street1) {
-            $error[] = ['street1'];
-        } else {
-            $arr['street1'] = $street1;
-        }
-        if ($street2) {
-            $arr['street2'] = $street2;
-        }
-        if (!$city) {
-            $error[] = ['city'];
-        } else {
-            $arr['city'] = $city;
-        }
-        if (!$zip) {
-            $error[] = ['zip'];
-        } else {
-            $arr['zip'] = $zip;
-        }
-        if (!empty($error)) {
-            $str = implode(',', $error).' can not empty';
-            $code = Yii::$service->helper->appserver->account_address_edit_param_invaild;
-            $data = [
-                'error' => $str,
-            ];
-            $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
-            
-            return $reponseData;
-        }
-       
-        if ($isDefaultActive) {
-            $arr['is_default'] = $isDefaultActive ? 1 : 2;
-        }
-        
-        if (isset($address_id)) {
-            $arr['address_id'] = $address_id;
-        }
         $identity = Yii::$app->user->identity;
-        $arr['customer_id'] = $identity['id'];
-        Yii::$service->customer->address->save($arr);
+        // 地址信息
+        $address = [
+            'address_id' => $address_id,
+            'first_name' => $first_name,
+            'last_name'  => $last_name,
+            'email'      => $identity['email'],
+            'country'    => $addressCountry,
+            'state'      => $addressState,
+            'telephone'  => $telephone,
+            'city'       => $city,
+            'area'       => $area,
+            'street1'    => $street1,
+            'street2'    => $street2,
+            'zip'        => $zip,
+            'is_default' => $isDefaultActive,
+        ];
+        $addressInfo = \Yii::$service->helper->htmlEncode($address);
+        
+        $addressInfo['customer_id'] = $identity['id'];
+        $saveStatus = Yii::$service->customer->address->save($addressInfo);
+        if (!$saveStatus) {
+            $code = Yii::$service->helper->appserver->account_address_save_fail;
+            $data = [];
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+            
+            return $responseData;
+        }
         $code = Yii::$service->helper->appserver->status_success;
         $data = [ ];
-        $reponseData = Yii::$service->helper->appserver->getReponseData($code, $data);
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
         
-        return $reponseData;
+        return $responseData;
     }
-    
+    // 设置默认地址
+    public function actionChangedefault()
+    {
+        $address_id = Yii::$app->request->post('address_id');
+        $identity = Yii::$app->user->identity;
+        $customerId = $identity->id;
+        $setStatus = Yii::$service->customer->address->setDefault($customerId, $address_id);
+        if (!$setStatus) {
+            $code = Yii::$service->helper->appserver->account_address_set_default_fail;
+            $data = [ ];
+            $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+            
+            return $responseData;
+        } 
+        
+        $code = Yii::$service->helper->appserver->status_success;
+        $data = [ ];
+        $responseData = Yii::$service->helper->appserver->getResponseData($code, $data);
+        
+        return $responseData;
+    }
    
 }
